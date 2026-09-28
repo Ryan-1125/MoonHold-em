@@ -1,0 +1,10 @@
+import {spawnSync} from 'node:child_process';
+import {copyFileSync} from 'node:fs';
+import {fileURLToPath} from 'node:url';
+import path from 'node:path';
+const root=fileURLToPath(new URL('../',import.meta.url));
+const result=spawnSync(process.platform==='win32'?'moon.exe':'moon',['build','web_bridge','--target','js','--release','--deny-warn'],{cwd:root,stdio:'inherit'});
+if(result.error) throw result.error;
+if(result.status!==0)process.exit(result.status??1);
+copyFileSync(path.join(root,'_build/js/release/build/web_bridge/web_bridge.js'),path.join(root,'web/engine.mjs'));
+console.log('Web build ready: web/');

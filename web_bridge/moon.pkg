@@ -1,0 +1,7 @@
+import {
+  "Ryan-1125/moonholdem" @holdem,
+}
+
+options(
+  link: { "js": { "exports": [ "analyze" ], "format": "esm" } },
+)

@@ -1,0 +1,5 @@
+import {analyze} from './engine.mjs';
+self.onmessage = ({data}) => {
+  try { self.postMessage({id:data.id, result:JSON.parse(analyze(data.hero,data.villain,data.board))}); }
+  catch { self.postMessage({id:data.id,error:'计算失败，请检查牌面后重试。'}); }
+};

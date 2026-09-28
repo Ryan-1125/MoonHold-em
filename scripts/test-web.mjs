@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import {analyze} from '../web/engine.mjs';
+const run=(h,v,b)=>JSON.parse(analyze(h,v,b));
+const turn=run('As Ad','Ks Kd','2c 3d 7h 9s');
+assert.deepEqual([turn.wins,turn.losses,turn.ties,turn.total],[42,2,0,44]);
+assert.equal(turn.hero.category,'一对');
+assert.equal(turn.comparison,1);
+const tie=run('2c 3c','4d 5d','As Ks Qs Js Ts');
+assert.equal(tie.ties,1);assert.equal(tie.equity,.5);assert.equal(tie.comparison,0);
+assert.equal(tie.hero.category,'同花顺');
+const flop=run('Ah Kh','Qs Qd','2h 7h Qc');assert.equal(flop.total,990);
+assert.equal(flop.wins+flop.losses+flop.ties,990);
+assert.ok(run('As Ad','As Kd','2c 3d 7h').error);
+assert.ok(run('garbage','Ks Kd','2c 3d 7h').error);
+assert.ok(run('As','Ks Kd','2c 3d 7h').error);
+assert.ok(run('As Ad','Ks Kd','2c 3d').error);
+console.log('Browser bridge: examples, exact counts, ties and invalid inputs passed.');

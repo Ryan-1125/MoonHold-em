@@ -39,5 +39,12 @@ jobs:
         run: moon run cmd/demo
       - name: Exhaustive five-card verification
         run: moon run cmd/verify --release
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Build and test browser bridge
+        run: |
+          node scripts/build-web.mjs
+          node scripts/test-web.mjs
       - name: Verify package contents
         run: moon package --list

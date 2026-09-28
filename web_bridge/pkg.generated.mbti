@@ -1,0 +1,15 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Ryan-1125/moonholdem/web_bridge"
+
+// Values
+pub fn analyze(String, String, String) -> String
+
+// Errors
+
+// Types and methods
+type HandView derive(ToJson)
+pub fn HandView::to_json(Self) -> Json
+
+// Type aliases
+
+// Traits
