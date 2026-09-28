@@ -7,29 +7,29 @@ const presets = {
   tie:{hands:[['2c','3c'],['4d','5d']],board:['As','Ks','Qs','Js','Ts']},
   four:{hands:[['As','Ad'],['Ks','Kd'],['Qs','Qd'],['Js','Jd']],board:['2c','3d','7h','9s',null]}
 };
-let state, selected={seat:0,index:0}, revision=0, busy=false, result=null, detailSeat=0;
+let state, selected=null, revision=0, busy=false, result=null, detailSeat=0;
 const empty=$('result-content').innerHTML;
 const worker=new Worker('worker.js',{type:'module'});
 const seatLabel=i=>`玩家 ${i+1}`;
-const selectedCards=()=>selected.seat===-1?state.board:state.hands[selected.seat];
+const selectedCards=()=>selected ? (selected.seat===-1?state.board:state.hands[selected.seat]) : null;
 function cardHTML(card,cls='mini') {
   return `<span class="${cls}${'hd'.includes(card[1])?' red':''}">${card[0]==='T'?'10':card[0]}${suits[card[1]]}</span>`;
 }
 function invalidate(){revision++;busy=false;result=null;$('result-content').innerHTML=empty;$('result-status').textContent='牌面已更新';$('message').textContent='';}
 function slot(card,seat,index){
   const b=document.createElement('button');
-  b.className='card-slot'+(card?' filled':'')+(card&&'hd'.includes(card[1])?' red':'')+(selected.seat===seat&&selected.index===index?' active':'');
+  b.className='card-slot'+(card?' filled':'')+(card&&'hd'.includes(card[1])?' red':'')+(selected?.seat===seat&&selected?.index===index?' active':'');
   const label=seat===-1?'公共牌':seatLabel(seat);
   b.setAttribute('aria-label',`${label}第${index+1}张：${card?suitNames[card[1]]+card[0]:'未选择'}`);
-  b.setAttribute('aria-pressed',String(selected.seat===seat&&selected.index===index));
+  b.setAttribute('aria-pressed',String(selected?.seat===seat&&selected?.index===index));
   b.innerHTML=card?`<span class="rank">${card[0]==='T'?'10':card[0]}</span><span class="suit">${suits[card[1]]}</span>`:'+';
   b.onclick=()=>{selected={seat,index};render();};return b;
 }
 function removeSeat(index){
   if(state.hands.length<=2)return;
   state.hands.splice(index,1);
-  if(selected.seat===index)selected={seat:Math.min(index,state.hands.length-1),index:0};
-  else if(selected.seat>index)selected.seat--;
+  if(selected?.seat===index)selected=null;
+  else if(selected && selected.seat>index)selected.seat--;
   detailSeat=0;invalidate();render();
 }
 function render(){
@@ -48,26 +48,26 @@ function render(){
   const used=new Set([...state.hands.flat(),...state.board].filter(Boolean));
   const deck=$('deck');deck.replaceChildren();
   for(const suit of ['s','h','d','c'])for(const rank of ['2','3','4','5','6','7','8','9','T','J','Q','K','A']){
-    const card=rank+suit,b=document.createElement('button');b.className='deck-card'+('hd'.includes(suit)?' red':'');b.innerHTML=`${rank==='T'?'10':rank}<span>${suits[suit]}</span>`;b.disabled=used.has(card);b.setAttribute('aria-label',suitNames[suit]+(rank==='T'?'10':rank));
-    b.onclick=()=>{const target=selectedCards();target[selected.index]=card;invalidate();const next=target.findIndex(c=>!c);if(next>=0)selected.index=next;render();};deck.append(b);
+    const card=rank+suit,b=document.createElement('button');b.className='deck-card'+('hd'.includes(suit)?' red':'');b.innerHTML=`${rank==='T'?'10':rank}<span>${suits[suit]}</span>`;b.disabled=!selected||used.has(card);b.classList.toggle('used-card',used.has(card));b.setAttribute('aria-label',suitNames[suit]+(rank==='T'?'10':rank));
+    b.onclick=()=>{const target=selectedCards();if(!target||!selected||used.has(card))return;target[selected.index]=card;invalidate();const next=target.findIndex(c=>!c);selected=next>=0?{seat:selected.seat,index:next}:null;render();};deck.append(b);
   }
   const count=state.board.filter(Boolean).length;
   $('stage').textContent=(count===3?'翻牌':count===4?'转牌':count===5?'河牌':'选择公共牌')+` · ${count} / 5`;
-  $('selection-label').textContent=`正在选择：${selected.seat===-1?'公共牌':seatLabel(selected.seat)} · 第 ${selected.index+1} 张`;
+  $('selection-label').textContent=selected?`正在选择：${selected.seat===-1?'公共牌':seatLabel(selected.seat)} · 第 ${selected.index+1} 张`:'请先点击要选牌或替换的牌位';
   const ready=state.hands.every(h=>h.every(Boolean))&&count>=3;
   const remaining=52-2*state.hands.length-count;
   const outcomes=count===3?remaining*(remaining-1)/2:count===4?remaining:1;
   $('calculate').disabled=!ready||busy;
   $('calculate').innerHTML=busy?'正在精确计算…':'计算牌力与概率 <span aria-hidden="true">→</span>';
   $('ready-note').textContent=ready?`精确枚举 ${outcomes} 种结局`:'请选齐所有底牌和至少 3 张公共牌';
-  $('remove').disabled=!selectedCards()[selected.index];
+  $('remove').disabled=!selected||!selectedCards()?.[selected.index];
 }
 function calculate(){
   if($('calculate').disabled)return;
   busy=true;render();$('message').textContent='正在枚举剩余公共牌…';
   worker.postMessage({id:revision,hands:state.hands.map(h=>h.join(' ')).join('|'),board:state.board.filter(Boolean).join(' ')});
 }
-function load(name){state=structuredClone(presets[name]);selected={seat:0,index:0};detailSeat=0;invalidate();render();calculate();}
+function load(name){state=structuredClone(presets[name]);selected=null;detailSeat=0;invalidate();render();calculate();}
 function showResults(){
   const r=result,finished=state.board.filter(Boolean).length===5;
   const pct=n=>(n/r.total*100).toFixed(2);
@@ -86,8 +86,8 @@ worker.onmessage=({data})=>{
 };
 worker.onerror=()=>{busy=false;render();$('message').textContent='计算模块加载失败，请重新运行 node scripts/serve-web.mjs 并刷新页面。';};
 $('calculate').onclick=calculate;
-$('remove').onclick=()=>{selectedCards()[selected.index]=null;invalidate();render();};
-$('reset').onclick=()=>{state={hands:state.hands.map(()=>[null,null]),board:[null,null,null,null,null]};selected={seat:0,index:0};detailSeat=0;invalidate();render();};
+$('remove').onclick=()=>{if(!selected)return;selectedCards()[selected.index]=null;invalidate();render();};
+$('reset').onclick=()=>{state={hands:state.hands.map(()=>[null,null]),board:[null,null,null,null,null]};selected=null;detailSeat=0;invalidate();render();};
 $('add-seat').onclick=()=>{if(state.hands.length>=9)return;state.hands.push([null,null]);selected={seat:state.hands.length-1,index:0};invalidate();render();};
 for(const b of document.querySelectorAll('[data-preset]'))b.onclick=()=>load(b.dataset.preset);
 load('turn');
