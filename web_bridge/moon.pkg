@@ -3,5 +3,5 @@ import {
 }
 
 options(
-  link: { "js": { "exports": [ "analyze" ], "format": "esm" } },
+  link: { "js": { "exports": [ "analyze", "analyze_table" ], "format": "esm" } },
 )

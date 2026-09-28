@@ -4,6 +4,8 @@ package "Ryan-1125/moonholdem/web_bridge"
 // Values
 pub fn analyze(String, String, String) -> String
 
+pub fn analyze_table(String, String) -> String
+
 // Errors
 
 // Types and methods

@@ -7,11 +7,11 @@
 <section class="intro"><div><p class="eyebrow">TEXAS HOLD’EM / INTERACTIVE LAB</p><h1>让每一手牌，<em>都有答案。</em></h1><p class="lead">选好底牌与公共牌，看清当前牌力，算出最后的胜负概率。</p></div><div class="intro-number">52<span>张牌 · 精确枚举</span></div></section>
 <div class="layout"><section class="workspace">
 <div class="section-title"><h2><span>01</span> 设置牌局</h2><button id="reset" class="text-button">清空牌桌 ↺</button></div>
-<div class="presets"><span>试试示例</span><button data-preset="turn">AA 对 KK</button><button data-preset="flush">同花听牌</button><button data-preset="tie">公共牌平局</button></div>
+<div class="presets"><span>试试示例</span><button data-preset="turn">AA 对 KK</button><button data-preset="flush">同花听牌</button><button data-preset="tie">公共牌平局</button><button data-preset="four">四人对局</button></div>
 <div class="table">
-<div class="players"><div><h3><i class="dot gold"></i>玩家一 <small>HERO</small></h3><div id="hero-slots" class="slots"></div></div><div class="versus">VS</div><div><h3><i class="dot blue"></i>玩家二 <small>VILLAIN</small></h3><div id="villain-slots" class="slots"></div></div></div>
+<div class="seat-controls"><span id="seat-count">2 人牌桌</span><button id="add-seat" type="button">＋ 添加玩家</button></div><div id="players" class="players multi-players"></div>
 <div class="board-heading"><h3>公共牌 <small>BOARD</small></h3><span id="stage">转牌 · 4 / 5</span></div><div id="board-slots" class="slots board"></div>
-<p class="table-note">每人 2 张底牌，公共牌选 3–5 张。点击牌位后，从下方选牌。</p>
+<p class="table-note">支持 2–8 人，每人 2 张底牌，公共牌选 3–5 张。点击牌位后，从下方选牌。</p>
 </div>
 <div class="deck-heading"><p id="selection-label">正在选择：玩家一 · 第 1 张</p><button id="remove" class="text-button">移除当前牌</button></div>
 <div id="deck" class="deck" aria-label="选择扑克牌"></div>
@@ -19,7 +19,7 @@
 <p id="message" class="message" role="status" aria-live="polite"></p>
 </section>
 <aside class="results" aria-live="polite"><div class="section-title"><h2><span>02</span> 牌局分析</h2><span id="result-status" class="status">等待计算</span></div><div id="result-content"><div class="empty">♧<h3>答案从一手牌开始</h3><p>选择牌面，点击计算。<br>也可以载入一个示例。</p></div></div></aside></div>
-<section class="notes"><div><span>01 / 牌力</span><p>展示当前可组成的最佳五张牌。花色不分大小，点数相同时比较踢脚牌。</p></div><div><span>02 / 概率</span><p>双方底牌已知，遍历所有可能的剩余公共牌。结果精确且可重复，不是随机预测。</p></div><div><span>03 / 权益</span><p>权益 = 获胜概率 + 平局概率的一半。反映平分时的份额，不等于直接获胜概率。</p></div></section>
+<section class="notes"><div><span>01 / 牌力</span><p>展示当前可组成的最佳五张牌。花色不分大小，点数相同时比较踢脚牌。</p></div><div><span>02 / 概率</span><p>所有玩家底牌已知，遍历所有可能的剩余公共牌。结果精确且可重复，不是随机预测。</p></div><div><span>03 / 权益</span><p>独赢计完整份额，多人共同获胜时按人数平分。权益是所有结局下的平均份额，不等于独赢概率。</p></div></section>
 </main><footer><strong>MoonHoldem</strong><span>计算核心由 MoonBit 实现 · 标准 52 张牌 · 不含下注与边池</span></footer>
 <dialog id="hand-guide" class="hand-guide" aria-labelledby="guide-title" aria-describedby="guide-summary">
 <div class="guide-top"><div><p class="eyebrow">MOONHOLDEM / QUICK REFERENCE</p><h2 id="guide-title">德州扑克牌力表</h2><p id="guide-summary">从强到弱排列 · 每手牌取最佳五张</p></div><button id="close-guide" type="button" class="guide-close" aria-label="关闭牌力速查" autofocus>×</button></div>

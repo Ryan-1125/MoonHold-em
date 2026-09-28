@@ -328,3 +328,114 @@ test "tied hands have no decisive card" {
   assert_eq(e.left_decisive.length(), 0)
   assert_eq(e.right_decisive.length(), 0)
 }
+
+///|
+test "table equity agrees with heads-up and does not mutate board" {
+  let h = cards("As Ad")
+  let v = cards("Ks Kd")
+  let board = cards("2c 3d 7h 9s")
+  let t = @moonholdem.exact_table_equity([h, v], board).unwrap()
+  let two = @moonholdem.exact_equity(h, v, board).unwrap()
+  assert_eq(t.total, two.total)
+  assert_eq(t.players[0].wins, two.wins)
+  assert_eq(t.players[0].losses, two.losses)
+  assert_eq(t.players[0].ties, two.ties)
+  assert_eq(t.players[0].equity, two.pot_equity())
+  assert_eq(board, cards("2c 3d 7h 9s"))
+}
+
+///|
+test "three-player partial tie excludes losing player" {
+  let t = @moonholdem.exact_table_equity(
+    [cards("As 2c"), cards("Ah 3c"), cards("9s 9d")],
+    cards("Ks Qd Jh Tc 4s"),
+  ).unwrap()
+  assert_eq(t.total, 1)
+  for i in 0..<2 {
+    assert_eq(t.players[i].wins, 0)
+    assert_eq(t.players[i].ties, 1)
+    assert_eq(t.players[i].equity, 0.5)
+  }
+  assert_eq(t.players[2].losses, 1)
+  assert_eq(t.players[2].ties, 0)
+  assert_eq(t.players[2].equity, 0.0)
+}
+
+///|
+test "eight-way board tie splits by eight rather than two" {
+  let hands = [
+    cards("2c 2d"),
+    cards("3c 3d"),
+    cards("4c 4d"),
+    cards("5c 5d"),
+    cards("6c 6d"),
+    cards("7c 7d"),
+    cards("8c 8d"),
+    cards("9c 9d"),
+  ]
+  let t = @moonholdem.exact_table_equity(hands, cards("As Ks Qs Js Ts")).unwrap()
+  assert_eq(t.players.length(), 8)
+  for p in t.players {
+    assert_eq(p.equity, 0.125)
+    assert_eq(p.wins, 0)
+    assert_eq(p.ties, 1)
+  }
+}
+
+///|
+test "eight-player flop outcome count and conservation" {
+  let hands = [
+    cards("2c 2d"),
+    cards("3c 3d"),
+    cards("4c 4d"),
+    cards("5c 5d"),
+    cards("6c 6d"),
+    cards("7c 7d"),
+    cards("8c 8d"),
+    cards("9c 9d"),
+  ]
+  let t = @moonholdem.exact_table_equity(hands, cards("As Kh Qh")).unwrap()
+  assert_eq(t.total, 528)
+  let mut total_equity = 0.0
+  for p in t.players {
+    assert_eq(p.wins + p.ties + p.losses, t.total)
+    total_equity += p.equity
+  }
+  assert_true(total_equity > 0.999999 && total_equity < 1.000001)
+}
+
+///|
+test "table equity rejects invalid player count and shared duplicates" {
+  assert_true(
+    @moonholdem.exact_table_equity([cards("As Ad")], cards("2c 3d 7h"))
+    is Err(_),
+  )
+  assert_true(
+    @moonholdem.exact_table_equity(
+      Array::make(9, cards("As Ad")),
+      cards("2c 3d 7h"),
+    )
+    is Err(_),
+  )
+  assert_true(
+    @moonholdem.exact_table_equity(
+      [cards("As Ad"), cards("Ks Kd"), cards("As Qd")],
+      cards("2c 3d 7h"),
+    )
+    is Err(_),
+  )
+  assert_true(
+    @moonholdem.exact_table_equity(
+      [cards("As Ad"), cards("Ks")],
+      cards("2c 3d 7h"),
+    )
+    is Err(_),
+  )
+  assert_true(
+    @moonholdem.exact_table_equity(
+      [cards("As Ad"), cards("Ks Kd")],
+      cards("2c 3d"),
+    )
+    is Err(_),
+  )
+}
