@@ -11,6 +11,7 @@ let state, selected=null, revision=0, busy=false, exporting=false, result=null, 
 const empty=$('result-content').innerHTML;
 const worker=new Worker('worker.js',{type:'module'});
 const seatLabel=i=>`玩家 ${i+1}`;
+const outcomeLabel=n=>n===1?'仅有一种结局':`共有 ${n.toLocaleString()} 种结局`;
 const selectedCards=()=>selected ? (selected.seat===-1?state.board:state.hands[selected.seat]) : null;
 function cardHTML(card,cls='mini') {
   return `<span class="${cls}${'hd'.includes(card[1])?' red':''}">${card[0]==='T'?'10':card[0]}${suits[card[1]]}</span>`;
@@ -60,7 +61,7 @@ function render(){
   const outcomes=count===3?remaining*(remaining-1)/2:count===4?remaining:1;
   $('calculate').disabled=!ready||busy;
   $('calculate').innerHTML=busy?'正在精确计算…':'计算牌力与概率 <span aria-hidden="true">→</span>';
-  $('ready-note').textContent=ready?`精确枚举 ${outcomes} 种结局`:'请选齐所有底牌和至少 3 张公共牌';
+  $('ready-note').textContent=ready?outcomeLabel(outcomes):'请选齐所有底牌和至少 3 张公共牌';
   $('remove').disabled=!selected||!selectedCards()?.[selected.index];
 }
 function calculate(){
@@ -73,17 +74,17 @@ function showResults(){
   const r=result,finished=state.board.filter(Boolean).length===5;
   const pct=n=>(n/r.total*100).toFixed(2);
   const title=r.leaders.length===state.hands.length?(finished?'所有玩家平局':'所有玩家当前牌力相同'):r.leaders.map(seatLabel).join('、')+(finished?(r.leaders.length>1?'共同获胜':'获胜'):'当前领先');
-  const rows=r.players.map((p,i)=>`<tr class="${i===detailSeat?'selected-result':''}"><th scope="row"><button class="result-seat" data-seat="${i}" aria-pressed="${i===detailSeat}">${seatLabel(i)}${r.leaders.includes(i)?'<span class="leader-star" aria-label="当前最强"> ★</span>':''}</button></th><td>${pct(p.wins)}%</td><td>${pct(p.ties)}%</td><td>${pct(p.losses)}%</td><td class="equity-cell">${(p.equity*100).toFixed(2)}%</td></tr>`).join('');
+  const rows=r.players.map((p,i)=>`<tr data-result-seat="${i}" class="${i===detailSeat?'selected-result':''}"><th scope="row"><button class="result-seat" data-seat="${i}" aria-pressed="${i===detailSeat}">${seatLabel(i)}${r.leaders.includes(i)?'<span class="leader-star" aria-label="当前最强"> ★</span>':''}</button></th><td>${pct(p.wins)}%</td><td>${pct(p.ties)}%</td><td>${pct(p.losses)}%</td><td class="equity-cell">${(p.equity*100).toFixed(2)}%</td></tr>`).join('');
   const p=r.players[detailSeat];
   const reason=p.reason.replaceAll('玩家一','__LEFT__').replaceAll('玩家二',seatLabel(p.reference)).replaceAll('__LEFT__',seatLabel(detailSeat));
-  $('result-content').innerHTML=`<h3 class="result-title">${title}</h3><p class="subtext">${finished?'公共牌已全部发出，以下为最终摊牌结果。':'当前领先不代表最终获胜。下表精确枚举所有剩余公共牌。'}</p><div class="prob-head"><span>全桌 · 最终结果概率</span><small>${r.total.toLocaleString()} 种结局</small></div><div class="prob-table-wrap"><table class="prob-table"><caption>点击玩家，查看其牌力解释</caption><thead><tr><th>玩家</th><th>独赢</th><th>共同获胜</th><th>落败</th><th>权益</th></tr></thead><tbody>${rows}</tbody></table></div><p class="subtext">共同获胜指并列第一；每种结局按获胜人数平分权益。权益总和约为 100%（显示值经四舍五入）。</p><div class="detail-heading"><h3>${seatLabel(detailSeat)} · 牌力详情</h3><span>${p.hand.category}</span></div><div class="mini-cards">${p.hand.best.map(c=>cardHTML(c,p.decisive.includes(c)?'mini decisive':'mini')).join('')}</div><p class="rank-note">${p.decisive.length?'金色边框为与对比玩家比较时的关键牌。':'与对比玩家的最佳五张等值，没有单独决定胜负的牌。'}</p><div class="explanation"><strong>${finished?'摊牌比较':'当前牌力比较'} · 对比${seatLabel(p.reference)}</strong><p>${reason}</p></div><p class="subtext">${r.leaders.includes(detailSeat)?'当前最强玩家与其最强对手比较。':'此玩家与当前最强玩家比较。'} 概率按全桌计算，不是仅与该对手单挑的概率。</p>`;
-  for(const button of document.querySelectorAll('[data-seat]'))button.onclick=()=>{detailSeat=Number(button.dataset.seat);showResults();const active=document.querySelector(`[data-seat="${detailSeat}"]`);active?.focus({preventScroll:true});};
+  $('result-content').innerHTML=`<h3 class="result-title">${title}</h3><p class="subtext">${finished?'公共牌已全部发出，以下为最终摊牌结果。':'当前领先不代表最终获胜。下表精确枚举所有剩余公共牌。'}</p><div class="prob-head"><span>全桌 · 最终结果概率</span><small>${outcomeLabel(r.total)}</small></div><div class="prob-table-wrap"><table class="prob-table"><caption>点击任意玩家所在行，查看其牌力解释</caption><thead><tr><th>玩家</th><th>独赢</th><th>共同获胜</th><th>落败</th><th>权益</th></tr></thead><tbody>${rows}</tbody></table></div><p class="subtext">共同获胜指并列第一；每种结局按获胜人数平分权益。</p><div class="detail-heading"><h3>${seatLabel(detailSeat)} · 牌力详情</h3><span>${p.hand.category}</span></div><div class="mini-cards">${p.hand.best.map(c=>cardHTML(c,p.decisive.includes(c)?'mini decisive':'mini')).join('')}</div><p class="rank-note">${p.decisive.length?'金色边框为与对比玩家比较时的关键牌。':'与对比玩家的最佳五张等值，没有单独决定胜负的牌。'}</p><div class="explanation"><strong>${finished?'摊牌比较':'当前牌力比较'} · 对比${seatLabel(p.reference)}</strong><p>${reason}</p></div><p class="subtext">${r.leaders.includes(detailSeat)?'当前最强玩家与其最强对手比较。':'此玩家与当前最强玩家比较。'} 概率按全桌计算，不是仅与该对手单挑的概率。</p>`;
+  for(const row of document.querySelectorAll('[data-result-seat]'))row.onclick=()=>{detailSeat=Number(row.dataset.resultSeat);showResults();const active=document.querySelector(`[data-seat="${detailSeat}"]`);active?.focus({preventScroll:true});};
 }
 worker.onmessage=({data})=>{
   if(data.id!==revision)return;
   busy=false;
   if(data.error||data.result?.error){render();$('message').textContent=data.error||data.result.error;$('result-status').textContent='计算失败';return;}
-  result=data.result;detailSeat=Math.min(detailSeat,state.hands.length-1);render();showResults();$('message').textContent='计算完成。所有可能结局均已枚举。';$('result-status').textContent='多人精确结果';
+  result=data.result;detailSeat=result.leaders[0];render();showResults();$('message').textContent='计算完成。所有可能结局均已枚举。';$('result-status').textContent='多人精确结果';
 };
 worker.onerror=()=>{busy=false;render();$('message').textContent='计算模块加载失败，请重新运行 node scripts/serve-web.mjs 并刷新页面。';};
 $('calculate').onclick=calculate;
@@ -145,7 +146,7 @@ function tableImage(snapshot,analysis,date){
   text(date.toLocaleString('zh-CN',{hour12:false}),952,94,13,muted,400,'right');
   const boardCount=snapshot.board.filter(Boolean).length;
   const stage=({3:'翻牌',4:'转牌',5:'河牌'})[boardCount]||'待补全';
-  text(`${snapshot.hands.length} 人牌桌  /  ${stage}  /  ${analysis?'精确枚举 '+analysis.total+' 种结局':'尚未计算'}`,48,117,16,muted);
+  text(`${snapshot.hands.length} 人牌桌  /  ${stage}  /  ${analysis?outcomeLabel(analysis.total):'尚未计算'}`,48,117,16,muted);
   box(48,149,904,174,'#1c3229','#405c48');
   text('公共牌',74,184,17,gold,600);
   snapshot.board.forEach((c,i)=>card(c,328+i*67,200));
