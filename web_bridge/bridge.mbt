@@ -74,7 +74,16 @@ pub fn analyze(
   for c in villain {
     v.push(c)
   }
+  let explanation = @holdem.explain_comparison(
+    @holdem.evaluate(h).unwrap(),
+    @holdem.evaluate(v).unwrap(),
+  )
   let value : Json = {
+    "reason": explanation.reason.to_json(),
+    "hero_decisive": explanation.left_decisive.map(fn(c) { c.text() }).to_json(),
+    "villain_decisive": explanation.right_decisive
+    .map(fn(c) { c.text() })
+    .to_json(),
     "hero": view(h).to_json(),
     "villain": view(v).to_json(),
     "comparison": @holdem.compare(

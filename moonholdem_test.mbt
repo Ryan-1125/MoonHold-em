@@ -272,3 +272,59 @@ test "equity rejects preflop wrong hand size and duplicate cards" {
     is Err(_),
   )
 }
+
+///|
+test "explanation highlights the differing pair" {
+  let e = @moonholdem.explain_comparison(
+    eval("As Ad Jh 9c 7s"),
+    eval("Ks Kd Jh 9c 7s"),
+  )
+  assert_true(e.reason.contains("A大于K"))
+  assert_eq(e.left_decisive, cards("As Ad"))
+  assert_eq(e.right_decisive, cards("Ks Kd"))
+}
+
+///|
+test "explanation identifies later kicker rather than equal pair" {
+  let e = @moonholdem.explain_comparison(
+    eval("As Ad Kh Qc Js"),
+    eval("Ah Ac Ks Qd Ts"),
+  )
+  assert_true(e.reason.contains("第3张踢脚牌"))
+  assert_eq(e.left_decisive, cards("Js"))
+  assert_eq(e.right_decisive, cards("Ts"))
+}
+
+///|
+test "wheel explanation highlights five instead of ace" {
+  let e = @moonholdem.explain_comparison(
+    eval("As 2d 3h 4c 5s"),
+    eval("2s 3d 4h 5c 6s"),
+  )
+  assert_true(e.reason.contains("A2345"))
+  assert_true(e.reason.contains("玩家二牌力更强"))
+  assert_eq(e.left_decisive, cards("5s"))
+  assert_eq(e.right_decisive, cards("6s"))
+}
+
+///|
+test "different categories highlight category constituents" {
+  let e = @moonholdem.explain_comparison(
+    eval("As Ad Ah Kc 2s"),
+    eval("Ks Kd Qh 9c 3s"),
+  )
+  assert_true(e.reason.contains("三条大于一对"))
+  assert_eq(e.left_decisive, cards("As Ad Ah"))
+  assert_eq(e.right_decisive, cards("Ks Kd"))
+}
+
+///|
+test "tied hands have no decisive card" {
+  let e = @moonholdem.explain_comparison(
+    eval("As Ks Qs Js Ts"),
+    eval("Ah Kh Qh Jh Th"),
+  )
+  assert_true(e.reason.contains("花色不分大小"))
+  assert_eq(e.left_decisive.length(), 0)
+  assert_eq(e.right_decisive.length(), 0)
+}

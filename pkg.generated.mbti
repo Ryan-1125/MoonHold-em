@@ -14,6 +14,8 @@ pub fn evaluate_five(Array[Card]) -> Result[Evaluation, String]
 
 pub fn exact_equity(Array[Card], Array[Card], Array[Card]) -> Result[Equity, String]
 
+pub fn explain_comparison(Evaluation, Evaluation) -> ComparisonExplanation
+
 pub fn parse_card(String) -> Result[Card, String]
 
 pub fn parse_cards(String) -> Result[Array[Card], String]
@@ -45,6 +47,12 @@ pub(all) enum Category {
 pub fn Category::equal(Self, Self) -> Bool
 pub fn Category::not_equal(Self, Self) -> Bool
 pub fn Category::to_repr(Self) -> @debug.Repr
+
+pub struct ComparisonExplanation {
+  reason : String
+  left_decisive : Array[Card]
+  right_decisive : Array[Card]
+}
 
 pub struct Equity {
   wins : Int
