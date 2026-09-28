@@ -12,4 +12,4 @@ keywords = [ "poker", "holdem", "evaluation", "probability" ]
 
 preferred_target = "wasm-gc"
 
-description = "Pure MoonBit Texas Hold'em hand evaluation, showdown and exact 2-8 player equity."
+description = "Pure MoonBit Texas Hold'em hand evaluation, showdown and exact 2-9 player equity."

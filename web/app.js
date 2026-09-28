@@ -44,7 +44,7 @@ function render(){
   });
   $('board-slots').replaceChildren(...state.board.map((card,index)=>slot(card,-1,index)));
   $('seat-count').textContent=`${state.hands.length} 人牌桌`;
-  $('add-seat').disabled=state.hands.length>=8;
+  $('add-seat').disabled=state.hands.length>=9;
   const used=new Set([...state.hands.flat(),...state.board].filter(Boolean));
   const deck=$('deck');deck.replaceChildren();
   for(const suit of ['s','h','d','c'])for(const rank of ['A','K','Q','J','T','9','8','7','6','5','4','3','2']){
@@ -88,7 +88,7 @@ worker.onerror=()=>{busy=false;render();$('message').textContent='计算模块�
 $('calculate').onclick=calculate;
 $('remove').onclick=()=>{selectedCards()[selected.index]=null;invalidate();render();};
 $('reset').onclick=()=>{state={hands:state.hands.map(()=>[null,null]),board:[null,null,null,null,null]};selected={seat:0,index:0};detailSeat=0;invalidate();render();};
-$('add-seat').onclick=()=>{if(state.hands.length>=8)return;state.hands.push([null,null]);selected={seat:state.hands.length-1,index:0};invalidate();render();};
+$('add-seat').onclick=()=>{if(state.hands.length>=9)return;state.hands.push([null,null]);selected={seat:state.hands.length-1,index:0};invalidate();render();};
 for(const b of document.querySelectorAll('[data-preset]'))b.onclick=()=>load(b.dataset.preset);
 load('turn');
 const handGuide=$('hand-guide');

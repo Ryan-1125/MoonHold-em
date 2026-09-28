@@ -112,8 +112,8 @@ pub fn analyze_table(hands_text : String, board_text : String) -> String {
       Err(_) => return error_json("底牌格式不正确或有重复牌。")
     }
   }
-  if hands.length() < 2 || hands.length() > 8 {
-    return error_json("请选择 2 至 8 位玩家。")
+  if hands.length() < 2 || hands.length() > 9 {
+    return error_json("请选择 2 至 9 位玩家。")
   }
   for hand in hands {
     if hand.length() != 2 {

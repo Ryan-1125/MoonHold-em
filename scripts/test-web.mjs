@@ -39,5 +39,15 @@ assert.deepEqual(partial.leaders,[0,1]);assert.deepEqual(partial.players.map(p=>
 const four=table(['As Ad','Ks Kd','Qs Qd','Js Jd'],'2c 3d 7h 9s');
 assert.equal(four.total,40);assert.deepEqual(four.players.map(p=>p.wins),[34,2,2,2]);
 assert.ok(table(['As Ad','As Kd'],'2c 3d 7h').error);
-assert.ok(table(manyHands.concat('Tc Td'),'As Kh Qh').error);
-console.log('2–8 player counts, split equity, reference selection, permutation and validation passed.');
+assert.ok(table(manyHands.concat('Tc Td','Jc Jd'),'As Kh Qh').error);
+console.log('2–9 player counts, split equity, reference selection, permutation and validation passed.');
+
+const nineHands=manyHands.concat('Tc Td');
+const nineTie=table(nineHands,'As Ks Qs Js Ts');
+assert.equal(nineTie.players.length,9);
+assert.equal(nineTie.leaders.length,9);
+for(const p of nineTie.players){assert.equal(p.equity,1/9);assert.equal(p.ties,1);}
+const nineFlop=table(nineHands,'As Kh Qh');
+assert.equal(nineFlop.total,465);
+assert.ok(Math.abs(nineFlop.players.reduce((s,p)=>s+p.equity,0)-1)<1e-9);
+console.log('Nine-player tie (1/9 share) and 465-board flop enumeration passed.');

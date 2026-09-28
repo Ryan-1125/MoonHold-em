@@ -8,7 +8,7 @@ pub struct PlayerEquity {
 }
 
 ///|
-/// Exact outcomes for 2–8 known hands; equity splits tied boards by winner count.
+/// Exact outcomes for 2–9 known hands; equity splits tied boards by winner count.
 pub struct TableEquity {
   players : Array[PlayerEquity]
   total : Int
@@ -21,8 +21,8 @@ pub fn exact_table_equity(
   hands : Array[Array[Card]],
   board : Array[Card],
 ) -> Result[TableEquity, String] {
-  if hands.length() < 2 || hands.length() > 8 {
-    return Err("Expected 2 to 8 players")
+  if hands.length() < 2 || hands.length() > 9 {
+    return Err("Expected 2 to 9 players")
   }
   if board.length() < 3 || board.length() > 5 {
     return Err("Expected 3 to 5 community cards")

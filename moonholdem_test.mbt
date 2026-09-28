@@ -412,7 +412,7 @@ test "table equity rejects invalid player count and shared duplicates" {
   )
   assert_true(
     @moonholdem.exact_table_equity(
-      Array::make(9, cards("As Ad")),
+      Array::make(10, cards("As Ad")),
       cards("2c 3d 7h"),
     )
     is Err(_),
