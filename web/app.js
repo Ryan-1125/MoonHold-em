@@ -64,3 +64,13 @@ $('remove').onclick=()=>{state[selected.group][selected.index]=null;invalidate()
 $('reset').onclick=()=>{state={hero:[null,null],villain:[null,null],board:[null,null,null,null,null]};selected={group:'hero',index:0};invalidate();render();};
 for(const b of document.querySelectorAll('[data-preset]'))b.onclick=()=>load(b.dataset.preset);
 load('turn');
+
+const handGuide = $('hand-guide');
+$('open-guide').onclick = () => handGuide.showModal();
+$('close-guide').onclick = () => handGuide.close();
+handGuide.addEventListener('click', (event) => {
+  if (event.target !== handGuide) return;
+  const rect = handGuide.getBoundingClientRect();
+  if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) handGuide.close();
+});
+handGuide.addEventListener('close', () => $('open-guide').focus());
