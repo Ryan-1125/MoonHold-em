@@ -1,0 +1,79 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Ryan-1125/moonholdem"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn compare(Evaluation, Evaluation) -> Int
+
+pub fn evaluate(Array[Card]) -> Result[Evaluation, String]
+
+pub fn evaluate_five(Array[Card]) -> Result[Evaluation, String]
+
+pub fn exact_equity(Array[Card], Array[Card], Array[Card]) -> Result[Equity, String]
+
+pub fn parse_card(String) -> Result[Card, String]
+
+pub fn parse_cards(String) -> Result[Array[Card], String]
+
+pub fn showdown(Array[Array[Card]], Array[Card]) -> Result[Showdown, String]
+
+// Errors
+
+// Types and methods
+pub struct Card {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn Card::equal(Self, Self) -> Bool
+pub fn Card::not_equal(Self, Self) -> Bool
+pub fn Card::text(Self) -> String
+pub fn Card::to_repr(Self) -> @debug.Repr
+
+pub(all) enum Category {
+  HighCard
+  OnePair
+  TwoPair
+  ThreeOfAKind
+  Straight
+  Flush
+  FullHouse
+  FourOfAKind
+  StraightFlush
+} derive(Eq, @debug.Debug)
+pub fn Category::equal(Self, Self) -> Bool
+pub fn Category::not_equal(Self, Self) -> Bool
+pub fn Category::to_repr(Self) -> @debug.Repr
+
+pub struct Equity {
+  wins : Int
+  losses : Int
+  ties : Int
+  total : Int
+} derive(Eq, @debug.Debug)
+pub fn Equity::equal(Self, Self) -> Bool
+pub fn Equity::not_equal(Self, Self) -> Bool
+pub fn Equity::pot_equity(Self) -> Double
+pub fn Equity::to_repr(Self) -> @debug.Repr
+pub fn Equity::win_probability(Self) -> Double
+
+pub struct Evaluation {
+  category : Category
+  tie_break : Array[Int]
+  best_five : Array[Card]
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn Evaluation::equal(Self, Self) -> Bool
+pub fn Evaluation::not_equal(Self, Self) -> Bool
+pub fn Evaluation::to_repr(Self) -> @debug.Repr
+
+pub struct Showdown {
+  winners : Array[Int]
+  evaluations : Array[Evaluation]
+} derive(@debug.Debug)
+pub fn Showdown::to_repr(Self) -> @debug.Repr
+
+// Type aliases
+
+// Traits

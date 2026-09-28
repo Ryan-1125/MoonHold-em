@@ -1,0 +1,6 @@
+import {
+  "Ryan-1125/moonholdem" @holdem,
+  "moonbitlang/core/debug",
+}
+
+pkgtype(kind: "executable")

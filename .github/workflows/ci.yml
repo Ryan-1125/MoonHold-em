@@ -1,0 +1,43 @@
+name: CI
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install MoonBit stable
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL https://cli.moonbitlang.com/install/unix.sh -o /tmp/install-moonbit.sh
+          bash /tmp/install-moonbit.sh
+          echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
+      - name: Check compiler minimum version
+        run: |
+          moon version --all
+          python3 - <<'PY'
+          import re, subprocess
+          version = subprocess.check_output(['moonc', '-v'], text=True)
+          match = re.search(r'(\d+)\.(\d+)\.(\d+)', version)
+          assert match and tuple(map(int, match.groups())) >= (0, 10, 14), version
+          PY
+      - name: Format
+        run: moon fmt --check
+      - name: Check
+        run: moon check --deny-warn
+      - name: Build
+        run: moon build --deny-warn
+      - name: Test
+        run: moon test --deny-warn
+      - name: Run examples
+        run: moon run cmd/demo
+      - name: Exhaustive five-card verification
+        run: moon run cmd/verify --release
+      - name: Verify package contents
+        run: moon package --list
