@@ -36,18 +36,18 @@ fn category_label(category : Category) -> String {
 ///|
 fn comparison_part(category : Category, index : Int) -> String {
   match category {
-    OnePair => if index == 0 { "对子" } else { "第\{index}张踢脚牌" }
+    OnePair => if index == 0 { "对子" } else { "其余牌中的第\{index}张" }
     TwoPair =>
       match index {
         0 => "较大对子"
         1 => "较小对子"
-        _ => "踢脚牌"
+        _ => "其余牌"
       }
     ThreeOfAKind | FourOfAKind =>
       if index == 0 {
         category_label(category)
       } else {
-        "第\{index}张踢脚牌"
+        "其余牌中的第\{index}张"
       }
     FullHouse => if index == 0 { "三条" } else { "对子" }
     Straight | StraightFlush => "顺子的最高牌"

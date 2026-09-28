@@ -290,7 +290,7 @@ test "explanation identifies later kicker rather than equal pair" {
     eval("As Ad Kh Qc Js"),
     eval("Ah Ac Ks Qd Ts"),
   )
-  assert_true(e.reason.contains("第3张踢脚牌"))
+  assert_true(e.reason.contains("其余牌中的第3张"))
   assert_eq(e.left_decisive, cards("Js"))
   assert_eq(e.right_decisive, cards("Ts"))
 }
