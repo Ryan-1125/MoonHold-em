@@ -16,4 +16,40 @@
 .download-tools{border-top:1px solid var(--line);margin-top:22px;padding-top:18px;display:flex;flex-direction:column;align-items:center;gap:10px}.download-tools .download-button{justify-content:center;width:100%}#download-status{font-size:11px;line-height:1.8;white-space:pre-line;overflow-wrap:anywhere;align-self:stretch;color:var(--gold);margin:0}.image-preview{padding:0;border:1px solid #657459;border-radius:16px;background:var(--panel);color:var(--ink);width:min(730px,calc(100vw - 28px));max-height:90dvh;overflow:hidden}.image-preview[open]{display:flex;flex-direction:column}.image-preview::backdrop{background:#07110dcc;backdrop-filter:blur(5px)}body:has(.image-preview[open]){overflow:hidden}.preview-heading{padding:20px 24px 14px;border-bottom:1px solid var(--line)}.preview-heading h2{font-size:19px;color:var(--gold)}.preview-heading p{font-size:11px;line-height:1.7;overflow-wrap:anywhere;color:var(--muted);margin:8px 0 0}.preview-body{padding:18px;overflow-y:auto;overscroll-behavior:contain;min-height:0;background:#0c1714}.preview-body img{display:block;width:100%;height:auto;border-radius:5px}.preview-actions{display:flex;justify-content:flex-end;gap:12px;padding:16px 24px;flex-shrink:0;border-top:1px solid var(--line)}.preview-cancel{border:1px solid #56634e;border-radius:7px;padding:10px 22px;color:var(--ink);background:transparent;font-size:13px}.preview-cancel:hover{background:#ffffff0b}.preview-actions .primary{gap:15px}
 
 .prob-table tbody tr[data-result-seat]{cursor:pointer}.prob-table tbody tr[data-result-seat]:hover{background:#e1bd781a}
+
+/* Turn-stage river outcomes, grouped by final winners. */
+.layout{align-items:start}
+.river-panel{margin-top:24px;padding:24px;border:1px solid var(--line);border-radius:18px;background:var(--panel)}
+.river-panel[hidden]{display:none}
+.river-section{margin:0;padding:0}
+.river-panel .river-preview{margin:0;padding:0;border:0}
+.mini-cards{gap:8px}
+.mini-cards .mini{width:44px;min-width:44px;height:60px;flex:0 0 44px;box-sizing:border-box;padding:5px 0;display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}
+.mini-rank{font-size:20px;font-weight:bold;line-height:1}
+.mini-suit{font-size:18px;line-height:1}
+@media(max-width:450px){.river-panel{padding:16px}}
+.river-section>h3{font-size:14px;color:var(--gold);margin:0 0 8px}
+.river-group{border:1px solid var(--line);border-radius:8px;margin-top:10px;overflow:hidden}
+.river-group summary{display:flex;align-items:center;flex-wrap:wrap;gap:8px;cursor:pointer;padding:12px;font-size:11px;list-style:none}
+.river-group summary::-webkit-details-marker{display:none}
+.river-group summary::after{content:'＋';color:var(--muted)}
+.river-group[open] summary::after{content:'−'}
+.river-group summary small{margin-left:auto;color:var(--muted);white-space:nowrap}
+.river-tag{font-size:10px;color:var(--muted);background:#ffffff08;border-radius:4px;padding:3px 5px}
+.river-tag.changed{color:var(--gold);background:#e1bd7818}
+.river-cards{display:flex;flex-direction:column;gap:10px;padding:2px 12px 14px}
+.river-suit-row{display:grid;grid-template-columns:14px minmax(0,1fr);gap:6px;align-items:start}
+.river-suit-row+.river-suit-row{border-top:1px solid var(--line);padding-top:10px}
+.river-suit-label{color:var(--muted);font:14px Georgia,serif;padding-top:21px}
+.river-suit-cards{display:flex;flex-wrap:wrap;gap:6px}
+.river-card{border:1px solid transparent;border-radius:5px;padding:3px;background:transparent;width:44px;height:60px;flex:0 0 44px}
+.river-face{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;width:100%;height:100%;background:#eeeade;color:#26372e;border-radius:4px;font-family:Georgia,serif}
+.river-face.red{color:#b74d42}
+.river-rank{font-size:18px;font-weight:bold;line-height:1}
+.river-suit{font-size:17px;line-height:1}
+.river-card.river-changed{border-color:#8a754f}
+.river-card:hover{background:#e1bd7828;border-color:var(--gold)}
+.river-preview{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:20px;padding-top:16px;border-top:1px solid var(--line);font-size:11px;color:var(--muted)}
+.river-preview button{border:1px solid #8a754f;color:var(--gold);background:transparent;border-radius:6px;padding:10px 12px}
+.river-group summary:focus-visible{outline:2px solid var(--gold);outline-offset:-3px}
 .intro-number{text-align:center}

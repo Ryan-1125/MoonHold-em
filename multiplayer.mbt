@@ -8,10 +8,19 @@ pub struct PlayerEquity {
 }
 
 ///|
+/// One possible river and its zero-based winning seats.
+pub struct RiverOutcome {
+  card : Card
+  winners : Array[Int]
+}
+
+///|
 /// Exact outcomes for 2–9 known hands; equity splits tied boards by winner count.
 pub struct TableEquity {
   players : Array[PlayerEquity]
   total : Int
+  // Populated only when exactly four community cards were supplied.
+  rivers : Array[RiverOutcome]
 }
 
 ///|
@@ -49,7 +58,18 @@ pub fn exact_table_equity(
   let wins = Array::make(hands.length(), 0)
   let ties = Array::make(hands.length(), 0)
   let shares = Array::make(hands.length(), 0.0)
-  let total = enumerate_table(hands, board.copy(), deck, 0, wins, ties, shares)
+  let rivers = []
+  let total = enumerate_table(
+    hands,
+    board.copy(),
+    deck,
+    0,
+    wins,
+    ties,
+    shares,
+    board.length() == 4,
+    rivers,
+  )
   let players = []
   for i in 0..<hands.length() {
     players.push({
@@ -59,7 +79,7 @@ pub fn exact_table_equity(
       equity: shares[i] / total.to_double(),
     })
   }
-  Ok({ players, total, })
+  Ok({ players, total, rivers, })
 }
 
 ///|
@@ -71,6 +91,8 @@ fn enumerate_table(
   wins : Array[Int],
   ties : Array[Int],
   shares : Array[Double],
+  record_rivers : Bool,
+  rivers : Array[RiverOutcome],
 ) -> Int {
   if board.length() == 5 {
     let winners = []
@@ -89,6 +111,9 @@ fn enumerate_table(
         winners.push(i)
       }
     }
+    if record_rivers {
+      rivers.push({ card: board[4], winners: winners.copy(), })
+    }
     for i in winners {
       if winners.length() == 1 {
         wins[i] += 1
@@ -103,7 +128,17 @@ fn enumerate_table(
   let needed = 5 - board.length()
   for i in start..<(deck.length() - needed + 1) {
     board.push(deck[i])
-    total += enumerate_table(hands, board, deck, i + 1, wins, ties, shares)
+    total += enumerate_table(
+      hands,
+      board,
+      deck,
+      i + 1,
+      wins,
+      ties,
+      shares,
+      record_rivers,
+      rivers,
+    )
     ignore(board.pop())
   }
   total

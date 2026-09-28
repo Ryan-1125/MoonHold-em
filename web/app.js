@@ -8,15 +8,17 @@ const presets = {
   four:{hands:[['As','Ad'],['Ks','Kd'],['Qs','Qd'],['Js','Jd']],board:['2c','3d','7h','9s',null]}
 };
 let state, selected=null, revision=0, busy=false, exporting=false, result=null, detailSeat=0;
+let riverPreview=null;
+let riverNavigation=null;
 const empty=$('result-content').innerHTML;
 const worker=new Worker('worker.js',{type:'module'});
 const seatLabel=i=>`玩家 ${i+1}`;
 const outcomeLabel=n=>n===1?'仅有一种结局':`共有 ${n.toLocaleString()} 种结局`;
 const selectedCards=()=>selected ? (selected.seat===-1?state.board:state.hands[selected.seat]) : null;
 function cardHTML(card,cls='mini') {
-  return `<span class="${cls}${'hd'.includes(card[1])?' red':''}">${card[0]==='T'?'10':card[0]}${suits[card[1]]}</span>`;
+  return `<span class="${cls}${'hd'.includes(card[1])?' red':''}" aria-label="${suitNames[card[1]]}${card[0]==='T'?'10':card[0]}"><span class="mini-rank" aria-hidden="true">${card[0]==='T'?'10':card[0]}</span><span class="mini-suit" aria-hidden="true">${suits[card[1]]}</span></span>`;
 }
-function invalidate(){saveTable();revision++;busy=false;result=null;$('result-content').innerHTML=empty;$('result-status').textContent='牌面已更新';$('message').textContent='';}
+function invalidate(){riverPreview=null;riverNavigation=null;saveTable();revision++;busy=false;result=null;$('result-content').innerHTML=empty;$('river-content').replaceChildren();$('river-content').hidden=true;$('result-status').textContent='牌面已更新';$('message').textContent='';}
 function slot(card,seat,index){
   const b=document.createElement('button');
   b.className='card-slot'+(card?' filled':'')+(card&&'hd'.includes(card[1])?' red':'')+(selected?.seat===seat&&selected?.index===index?' active':'');
@@ -70,6 +72,58 @@ function calculate(){
   worker.postMessage({id:revision,hands:state.hands.map(h=>h.join(' ')).join('|'),board:state.board.filter(Boolean).join(' ')});
 }
 function load(name){state=structuredClone(presets[name]);selected=null;detailSeat=0;invalidate();render();calculate();}
+function riverSection(r){
+  if(riverPreview){
+    return '<div class="river-preview"><span>正在查看所选河牌的最终结果</span><button type="button" id="back-to-turn">← 返回转牌分析</button></div>';
+  }
+  if(!r.rivers?.length)return '';
+  const groups=new Map();
+  for(const river of r.rivers){
+    const key=river.winners.join(',');
+    if(!groups.has(key))groups.set(key,{winners:river.winners,cards:[]});
+    groups.get(key).cards.push(river.card);
+  }
+  const changed=g=>g.winners.join(',')!==r.leaders.join(',');
+  const ordered=[...groups.values()].sort((a,b)=>Number(changed(b))-Number(changed(a)));
+  const changes=ordered.filter(changed).reduce((sum,g)=>sum+g.cards.length,0);
+  const groupsHTML=ordered.map(g=>{
+    const different=changed(g);
+    const reversed=g.winners.every(i=>!r.leaders.includes(i));
+    const tag=reversed?'逆转':g.winners.length>1?'共同获胜':different?'决出胜者':'保持领先';
+    const winner=g.winners.map(seatLabel).join('、')+' '+(g.winners.length>1?'共同获胜':'获胜');
+    const ranks='23456789TJQKA';
+    const cards=['s','h','d','c'].map(suit=>{
+      const suited=g.cards.filter(card=>card[1]===suit).sort((a,b)=>ranks.indexOf(a[0])-ranks.indexOf(b[0]));
+      if(!suited.length)return '';
+      const buttons=suited.map(card=>`<button type="button" class="river-card${different?' river-changed':''}" data-river="${card}" aria-label="${suitNames[suit]}${card[0]==='T'?'10':card[0]}：${winner}，查看最终牌局"><span class="river-face${'hd'.includes(suit)?' red':''}" aria-hidden="true"><span class="river-rank">${card[0]==='T'?'10':card[0]}</span><span class="river-suit">${suits[suit]}</span></span></button>`).join('');
+      return `<div class="river-suit-row" role="group" aria-label="${suitNames[suit]}"><span class="river-suit-label" aria-hidden="true">${suits[suit]}</span><div class="river-suit-cards">${buttons}</div></div>`;
+    }).join('');
+    return `<details class="river-group"${different||ordered.length===1?' open':''}><summary><span class="river-tag${different?' changed':''}">${tag}</span><span>${winner}</span><small>${g.cards.length} 张</small></summary><div class="river-cards">${cards}</div></details>`;
+  }).join('');
+  return `<section class="river-section" aria-labelledby="river-title"><h3 id="river-title">哪张河牌会改变结果？</h3><p class="subtext">剩余 ${r.rivers.length} 张牌，${changes?'其中 '+changes+' 张会改变领先名单。':'均不改变领先名单。'}点击牌面查看最终牌局。</p>${groupsHTML}</section>`;
+}
+function previewRiver(card){
+  if(busy||!result?.rivers?.some(r=>r.card===card))return;
+  const emptySlot=state.board.findIndex(c=>!c);
+  if(emptySlot<0)return;
+  const original=structuredClone(state);
+  state.board[emptySlot]=card;
+  selected=null;
+  invalidate();
+  riverPreview=original;
+  riverNavigation='result-content';
+  render();
+  calculate();
+}
+function returnToTurn(){
+  if(!riverPreview||busy)return;
+  state=riverPreview;
+  selected=null;
+  invalidate();
+  riverNavigation='river-content';
+  render();
+  calculate();
+}
 function showResults(){
   const r=result,finished=state.board.filter(Boolean).length===5;
   const pct=n=>(n/r.total*100).toFixed(2);
@@ -78,6 +132,11 @@ function showResults(){
   const p=r.players[detailSeat];
   const reason=p.reason.replaceAll('玩家一','__LEFT__').replaceAll('玩家二',seatLabel(p.reference)+' ').replaceAll('__LEFT__',seatLabel(detailSeat)+' ');
   $('result-content').innerHTML=`<h3 class="result-title">${title}</h3><p class="subtext">${finished?'公共牌已全部发出，以下为最终摊牌结果。':'当前领先不代表最终获胜。下表精确枚举所有剩余公共牌。'}</p><div class="prob-head"><span>全桌 · 最终结果概率</span><small>${outcomeLabel(r.total)}</small></div><div class="prob-table-wrap"><table class="prob-table"><caption>点击任意玩家所在行，查看其牌力解释</caption><thead><tr><th>玩家</th><th>独赢</th><th>共同获胜</th><th>落败</th><th>权益</th></tr></thead><tbody>${rows}</tbody></table></div><div class="detail-heading"><h3>${seatLabel(detailSeat)} · 牌力详情</h3><span>${p.hand.category}</span></div><div class="mini-cards">${p.hand.best.map(c=>cardHTML(c,p.decisive.includes(c)?'mini decisive':'mini')).join('')}</div><p class="rank-note">${p.decisive.length?'金色边框为与对比玩家比较时的关键牌。':'与对比玩家的最佳五张等值，没有单独决定胜负的牌。'}</p><div class="explanation"><strong>${finished?'摊牌比较':'当前牌力比较'} · 对比${seatLabel(p.reference)}</strong><p>${reason}</p></div><p class="subtext">${r.leaders.includes(detailSeat)?'当前最强玩家与其最强对手比较，':'此玩家与当前最强玩家比较，'} 概率按全桌计算。</p>`;
+  const riversHTML=riverSection(r);
+  $('river-content').innerHTML=riversHTML;
+  $('river-content').hidden=!riversHTML;
+  for(const card of document.querySelectorAll('[data-river]'))card.onclick=()=>previewRiver(card.dataset.river);
+  if($('back-to-turn'))$('back-to-turn').onclick=returnToTurn;
   for(const row of document.querySelectorAll('[data-result-seat]'))row.onclick=event=>{
     const keyboardActivation=event.detail===0;
     detailSeat=Number(row.dataset.resultSeat);
@@ -93,6 +152,7 @@ worker.onmessage=({data})=>{
   busy=false;
   if(data.error||data.result?.error){render();$('message').textContent=data.error||data.result.error;$('result-status').textContent='计算失败';return;}
   result=data.result;detailSeat=result.leaders[0];render();showResults();$('message').textContent='计算完成。所有可能结局均已枚举。';$('result-status').textContent='';
+  if(riverNavigation){$(riverNavigation).scrollIntoView({block:'start'});riverNavigation=null;}
 };
 worker.onerror=()=>{busy=false;render();$('message').textContent='计算模块加载失败，请重新运行 node scripts/serve-web.mjs 并刷新页面。';};
 $('calculate').onclick=calculate;

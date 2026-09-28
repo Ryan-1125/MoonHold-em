@@ -85,6 +85,11 @@ pub struct PlayerEquity {
   equity : Double
 }
 
+pub struct RiverOutcome {
+  card : Card
+  winners : Array[Int]
+}
+
 pub struct Showdown {
   winners : Array[Int]
   evaluations : Array[Evaluation]
@@ -94,6 +99,7 @@ pub fn Showdown::to_repr(Self) -> @debug.Repr
 pub struct TableEquity {
   players : Array[PlayerEquity]
   total : Int
+  rivers : Array[RiverOutcome]
 }
 
 // Type aliases

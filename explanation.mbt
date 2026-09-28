@@ -36,7 +36,12 @@ fn category_label(category : Category) -> String {
 ///|
 fn comparison_part(category : Category, index : Int) -> String {
   match category {
-    OnePair => if index == 0 { "对子" } else { "其余牌中的第\{index}张" }
+    OnePair =>
+      if index == 0 {
+        "对子"
+      } else {
+        "其余牌中的第\{index}张"
+      }
     TwoPair =>
       match index {
         0 => "较大对子"

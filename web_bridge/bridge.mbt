@@ -181,6 +181,15 @@ pub fn analyze_table(hands_text : String, board_text : String) -> String {
     "players": players.to_json(),
     "leaders": leaders.to_json(),
     "total": equity.total.to_json(),
+    "rivers": equity.rivers
+    .map(fn(river) {
+      let item : Json = {
+        "card": river.card.text().to_json(),
+        "winners": river.winners.to_json(),
+      }
+      item
+    })
+    .to_json(),
   }
   value.stringify()
 }
