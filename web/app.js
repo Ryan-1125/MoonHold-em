@@ -47,7 +47,7 @@ function render(){
   $('add-seat').disabled=state.hands.length>=9;
   const used=new Set([...state.hands.flat(),...state.board].filter(Boolean));
   const deck=$('deck');deck.replaceChildren();
-  for(const suit of ['s','h','d','c'])for(const rank of ['A','K','Q','J','T','9','8','7','6','5','4','3','2']){
+  for(const suit of ['s','h','d','c'])for(const rank of ['2','3','4','5','6','7','8','9','T','J','Q','K','A']){
     const card=rank+suit,b=document.createElement('button');b.className='deck-card'+('hd'.includes(suit)?' red':'');b.innerHTML=`${rank==='T'?'10':rank}<span>${suits[suit]}</span>`;b.disabled=used.has(card);b.setAttribute('aria-label',suitNames[suit]+(rank==='T'?'10':rank));
     b.onclick=()=>{const target=selectedCards();target[selected.index]=card;invalidate();const next=target.findIndex(c=>!c);if(next>=0)selected.index=next;render();};deck.append(b);
   }
@@ -58,7 +58,7 @@ function render(){
   const remaining=52-2*state.hands.length-count;
   const outcomes=count===3?remaining*(remaining-1)/2:count===4?remaining:1;
   $('calculate').disabled=!ready||busy;
-  $('calculate').innerHTML=busy?'正在精确计算…':'计算牌力与概率 <span>↗</span>';
+  $('calculate').innerHTML=busy?'正在精确计算…':'计算牌力与概率 <span aria-hidden="true">→</span>';
   $('ready-note').textContent=ready?`精确枚举 ${outcomes} 种结局`:'请选齐所有底牌和至少 3 张公共牌';
   $('remove').disabled=!selectedCards()[selected.index];
 }
