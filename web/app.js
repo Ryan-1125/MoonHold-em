@@ -210,8 +210,9 @@ function restoreTable(){
 function tableImage(snapshot,analysis,date){
   const width=1000,rowHeight=116,rowsTop=420;
   const height=rowsTop+snapshot.hands.length*rowHeight+158;
-  const canvas=document.createElement('canvas');canvas.width=width*2;canvas.height=height*2;
-  const ctx=canvas.getContext('2d');if(!ctx)throw Error('Canvas unavailable');ctx.scale(2,2);
+  const exportScale=4;
+  const canvas=document.createElement('canvas');canvas.width=width*exportScale;canvas.height=height*exportScale;
+  const ctx=canvas.getContext('2d');if(!ctx)throw Error('Canvas unavailable');ctx.scale(exportScale,exportScale);
   const ink='#f2f0e6',muted='#a9b7ab',gold='#e1bd78';
   ctx.fillStyle='#101b19';ctx.fillRect(0,0,width,height);
   const text=(value,x,y,size=18,color=ink,weight=400,align='left')=>{ctx.font=`${weight} ${size}px "Microsoft YaHei", "Noto Sans CJK SC", sans-serif`;ctx.fillStyle=color;ctx.textAlign=align;ctx.fillText(value,x,y);};
