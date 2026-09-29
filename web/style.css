@@ -84,3 +84,5 @@
 .player-name:focus{outline:none;border-color:var(--gold);box-shadow:none;background:#294b38}
 .seat-header .remove-seat{flex-shrink:0}
 .prob-table th,.result-title,.detail-heading h3,.explanation,.river-group summary>span{overflow-wrap:anywhere}
+
+.flying-card{position:fixed;z-index:1000;pointer-events:none;transform-origin:top left;background:#f2efe4;color:#24352d;border:1px solid #ddd9cd;border-radius:6px;will-change:transform;overflow:hidden}.flying-card.red{color:#b74d42}

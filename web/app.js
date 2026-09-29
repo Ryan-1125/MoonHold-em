@@ -48,14 +48,44 @@ function cardHTML(card,cls='mini') {
   return `<span class="${cls}${'hd'.includes(card[1])?' red':''}" aria-label="${suitNames[card[1]]}${card[0]==='T'?'10':card[0]}">${cardFace(card)}</span>`;
 }
 function invalidate(){riverPreview=null;riverNavigation=null;saveTable();revision++;busy=false;result=null;$('result-content').innerHTML=empty;$('river-content').replaceChildren();$('river-content').hidden=true;$('result-status').textContent='牌面已更新';$('message').textContent='';}
+let finishCardFlight=null;
+function flyCard(card,from,seat,index,returning=false){
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+  const destination=document.querySelector(returning?`[data-deck-card="${card}"]`:`[data-card-seat="${seat}"][data-card-index="${index}"]`);
+  if(!destination)return;
+  const to=destination.getBoundingClientRect();
+  const flying=document.createElement('div');
+  flying.className='flying-card'+('hd'.includes(card[1])?' red':'');
+  flying.setAttribute('aria-hidden','true');flying.innerHTML=cardFace(card);
+  Object.assign(flying.style,{left:from.left+'px',top:from.top+'px',width:from.width+'px',height:from.height+'px'});
+  document.body.append(flying);destination.style.visibility='hidden';
+  const animation=flying.animate([
+    {transform:'translate(0,0) scale(1)',boxShadow:'0 3px 8px #0003'},
+    {transform:`translate(${to.left-from.left}px,${to.top-from.top}px) scale(${to.width/from.width},${to.height/from.height})`,boxShadow:'0 3px 4px #0d201c40'}
+  ],{duration:480,easing:'cubic-bezier(.22,.68,.12,1)',fill:'forwards'});
+  const cleanup=()=>{destination.style.visibility='';flying.remove();animation.cancel();window.removeEventListener('scroll',cleanup,true);window.removeEventListener('resize',cleanup);if(finishCardFlight===cleanup)finishCardFlight=null;};
+  finishCardFlight=cleanup;animation.onfinish=cleanup;
+  window.addEventListener('scroll',cleanup,true);window.addEventListener('resize',cleanup);
+}
+function removeCard(seat,index){
+  const cards=seat===-1?state.board:state.hands[seat];
+  const card=cards?.[index];if(!card)return;
+  finishCardFlight?.();
+  const source=document.querySelector(`[data-card-seat="${seat}"][data-card-index="${index}"]`);
+  const from=source?.getBoundingClientRect();
+  cards[index]=null;selected={seat,index};invalidate();render();
+  if(from)flyCard(card,from,seat,index,true);
+}
 function slot(card,seat,index){
-  const b=document.createElement('button');
+  const b=document.createElement('button');b.dataset.cardSeat=seat;b.dataset.cardIndex=index;
   b.className='card-slot'+(card?' filled':'')+(card&&'hd'.includes(card[1])?' red':'')+(selected?.seat===seat&&selected?.index===index?' active':'');
   const label=seat===-1?'公共牌':seatLabel(seat);
   b.setAttribute('aria-label',`${label}第${index+1}张：${card?suitNames[card[1]]+card[0]:'未选择'}`);
   b.setAttribute('aria-pressed',String(selected?.seat===seat&&selected?.index===index));
   b.innerHTML=card?cardFace(card):'<svg class="card-art" viewBox="0 0 50 70" aria-hidden="true" focusable="false"><text x="25" y="43" font-size="25">+</text></svg>';
-  b.onclick=()=>{selected={seat,index};render();};return b;
+  b.onclick=()=>{selected={seat,index};render(true);};
+  b.ondblclick=event=>{event.preventDefault();removeCard(seat,index);};
+  if(card)b.title='双击移除此牌';return b;
 }
 function removeSeat(index){
   if(state.hands.length<=2)return;
@@ -64,7 +94,8 @@ function removeSeat(index){
   else if(selected && selected.seat>index)selected.seat--;
   detailSeat=0;invalidate();render();
 }
-function render(){
+function render(selectionOnly=false){
+  finishCardFlight?.();
   const activePreset=Object.keys(presets).find(key=>{
     const preset=presets[key];
     return preset.hands.length===state.hands.length&&preset.board.every((card,i)=>card===state.board[i])&&preset.hands.every((hand,i)=>hand.every((card,j)=>card===state.hands[i][j]));
@@ -76,6 +107,7 @@ function render(){
   $('preset-note').textContent=activePreset?presetDescriptions[activePreset]:'';
   $('preset-note').hidden=!activePreset;
   document.getElementById("download-image").disabled=exporting||busy||![...state.hands.flat(),...state.board].some(Boolean);
+  if(!selectionOnly){
   const table=$('players');table.replaceChildren();
   state.hands.forEach((cards,seat)=>{
     const panel=document.createElement('div');panel.className='seat'+(result?.leaders.includes(seat)?' leading':'');
@@ -89,13 +121,15 @@ function render(){
     const badge=document.createElement('p');badge.className='seat-state';badge.textContent=result?.leaders.includes(seat)?(state.board.filter(Boolean).length===5?'本局获胜':'当前领先'):'';panel.append(badge);table.append(panel);
   });
   $('board-slots').replaceChildren(...state.board.map((card,index)=>slot(card,-1,index)));
+  }
+  for(const card of document.querySelectorAll('.card-slot')){const active=selected?.seat===Number(card.dataset.cardSeat)&&selected?.index===Number(card.dataset.cardIndex);card.classList.toggle('active',active);card.setAttribute('aria-pressed',String(active));}
   $('seat-count').textContent=`${state.hands.length} 人牌桌`;
   $('add-seat').disabled=state.hands.length>=9;
   const used=new Set([...state.hands.flat(),...state.board].filter(Boolean));
   const deck=$('deck');deck.replaceChildren();
   for(const suit of ['s','h','d','c'])for(const rank of ['2','3','4','5','6','7','8','9','T','J','Q','K','A']){
-    const card=rank+suit,b=document.createElement('button');b.className='deck-card'+('hd'.includes(suit)?' red':'');b.innerHTML=cardFace(card);b.disabled=!selected||used.has(card);b.classList.toggle('used-card',used.has(card));b.setAttribute('aria-label',suitNames[suit]+(rank==='T'?'10':rank));
-    b.onclick=()=>{const target=selectedCards();if(!target||!selected||used.has(card))return;target[selected.index]=card;invalidate();const next=target.findIndex(c=>!c);selected=next>=0?{seat:selected.seat,index:next}:null;render();};deck.append(b);
+    const card=rank+suit,b=document.createElement('button');b.dataset.deckCard=card;b.className='deck-card'+('hd'.includes(suit)?' red':'');b.innerHTML=cardFace(card);b.disabled=!selected||used.has(card);b.classList.toggle('used-card',used.has(card));b.setAttribute('aria-label',suitNames[suit]+(rank==='T'?'10':rank));
+    b.onclick=()=>{const target=selectedCards();if(!target||!selected||used.has(card))return;const from=b.getBoundingClientRect(),landing={...selected};target[selected.index]=card;invalidate();const next=target.findIndex(c=>!c);selected=next>=0?{seat:selected.seat,index:next}:null;render();flyCard(card,from,landing.seat,landing.index);};deck.append(b);
   }
   const count=state.board.filter(Boolean).length;
   $('stage').textContent=(count===3?'翻牌':count===4?'转牌':count===5?'河牌':'选择公共牌')+` · ${count} / 5`;
@@ -200,7 +234,7 @@ worker.onmessage=({data})=>{
 };
 worker.onerror=()=>{busy=false;render();$('message').textContent='计算模块加载失败，请重新运行 node scripts/serve-web.mjs 并刷新页面。';};
 $('calculate').onclick=calculate;
-$('remove').onclick=()=>{if(!selected)return;selectedCards()[selected.index]=null;invalidate();render();};
+$('remove').onclick=()=>{if(selected)removeCard(selected.seat,selected.index);};
 $('reset').onclick=()=>{state={names:state.names,hands:state.hands.map(()=>[null,null]),board:[null,null,null,null,null]};selected=null;detailSeat=0;invalidate();render();};
 $('add-seat').onclick=()=>{if(state.hands.length>=9)return;state.names??=state.hands.map(()=>'');state.names.push('');state.hands.push([null,null]);selected={seat:state.hands.length-1,index:0};invalidate();render();};
 for(const b of document.querySelectorAll('[data-preset]'))b.onclick=()=>load(b.dataset.preset);
