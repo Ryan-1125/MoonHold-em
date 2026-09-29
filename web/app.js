@@ -12,11 +12,20 @@ let riverPreview=null;
 let riverNavigation=null;
 const empty=$('result-content').innerHTML;
 const worker=new Worker('worker.js',{type:'module'});
+const riverLayoutObserver=new ResizeObserver(entries=>{
+  for(const {target} of entries){
+    const count=Number(target.dataset.riverCount);
+    target.classList.toggle('river-inline',count*44+(count-1)*6<=target.clientWidth-24);
+  }
+});
 const seatLabel=i=>`玩家 ${i+1}`;
 const outcomeLabel=n=>n===1?'仅有一种结局':`共有 ${n.toLocaleString()} 种结局`;
 const selectedCards=()=>selected ? (selected.seat===-1?state.board:state.hands[selected.seat]) : null;
+function cardFace(card){
+  return `<svg class="card-art" viewBox="0 0 50 70" aria-hidden="true" focusable="false"><text x="25" y="29" font-size="22" font-weight="bold">${card[0]==='T'?'10':card[0]}</text><text x="25" y="51" font-size="20">${suits[card[1]]}</text></svg>`;
+}
 function cardHTML(card,cls='mini') {
-  return `<span class="${cls}${'hd'.includes(card[1])?' red':''}" aria-label="${suitNames[card[1]]}${card[0]==='T'?'10':card[0]}"><span class="mini-rank" aria-hidden="true">${card[0]==='T'?'10':card[0]}</span><span class="mini-suit" aria-hidden="true">${suits[card[1]]}</span></span>`;
+  return `<span class="${cls}${'hd'.includes(card[1])?' red':''}" aria-label="${suitNames[card[1]]}${card[0]==='T'?'10':card[0]}">${cardFace(card)}</span>`;
 }
 function invalidate(){riverPreview=null;riverNavigation=null;saveTable();revision++;busy=false;result=null;$('result-content').innerHTML=empty;$('river-content').replaceChildren();$('river-content').hidden=true;$('result-status').textContent='牌面已更新';$('message').textContent='';}
 function slot(card,seat,index){
@@ -25,7 +34,7 @@ function slot(card,seat,index){
   const label=seat===-1?'公共牌':seatLabel(seat);
   b.setAttribute('aria-label',`${label}第${index+1}张：${card?suitNames[card[1]]+card[0]:'未选择'}`);
   b.setAttribute('aria-pressed',String(selected?.seat===seat&&selected?.index===index));
-  b.innerHTML=card?`<span class="rank">${card[0]==='T'?'10':card[0]}</span><span class="suit">${suits[card[1]]}</span>`:'+';
+  b.innerHTML=card?cardFace(card):'<svg class="card-art" viewBox="0 0 50 70" aria-hidden="true" focusable="false"><text x="25" y="43" font-size="25">+</text></svg>';
   b.onclick=()=>{selected={seat,index};render();};return b;
 }
 function removeSeat(index){
@@ -52,7 +61,7 @@ function render(){
   const used=new Set([...state.hands.flat(),...state.board].filter(Boolean));
   const deck=$('deck');deck.replaceChildren();
   for(const suit of ['s','h','d','c'])for(const rank of ['2','3','4','5','6','7','8','9','T','J','Q','K','A']){
-    const card=rank+suit,b=document.createElement('button');b.className='deck-card'+('hd'.includes(suit)?' red':'');b.innerHTML=`${rank==='T'?'10':rank}<span>${suits[suit]}</span>`;b.disabled=!selected||used.has(card);b.classList.toggle('used-card',used.has(card));b.setAttribute('aria-label',suitNames[suit]+(rank==='T'?'10':rank));
+    const card=rank+suit,b=document.createElement('button');b.className='deck-card'+('hd'.includes(suit)?' red':'');b.innerHTML=cardFace(card);b.disabled=!selected||used.has(card);b.classList.toggle('used-card',used.has(card));b.setAttribute('aria-label',suitNames[suit]+(rank==='T'?'10':rank));
     b.onclick=()=>{const target=selectedCards();if(!target||!selected||used.has(card))return;target[selected.index]=card;invalidate();const next=target.findIndex(c=>!c);selected=next>=0?{seat:selected.seat,index:next}:null;render();};deck.append(b);
   }
   const count=state.board.filter(Boolean).length;
@@ -95,12 +104,12 @@ function riverSection(r){
     const cards=['s','h','d','c'].map(suit=>{
       const suited=g.cards.filter(card=>card[1]===suit).sort((a,b)=>ranks.indexOf(a[0])-ranks.indexOf(b[0]));
       if(!suited.length)return '';
-      const buttons=suited.map(card=>`<button type="button" class="river-card${different?' river-changed':''}" data-river="${card}" aria-label="${suitNames[suit]}${card[0]==='T'?'10':card[0]}：${winner}，查看最终牌局"><span class="river-face${'hd'.includes(suit)?' red':''}" aria-hidden="true"><span class="river-rank">${card[0]==='T'?'10':card[0]}</span><span class="river-suit">${suits[suit]}</span></span></button>`).join('');
+      const buttons=suited.map(card=>`<button type="button" class="river-card${different?' river-changed':''}${'hd'.includes(suit)?' red':''}" data-river="${card}" aria-label="${suitNames[suit]}${card[0]==='T'?'10':card[0]}：${winner}，查看最终牌局">${cardFace(card)}</button>`).join('');
       return `<div class="river-suit-row" role="group" aria-label="${suitNames[suit]}"><span class="river-suit-label" aria-hidden="true">${suits[suit]}</span><div class="river-suit-cards">${buttons}</div></div>`;
     }).join('');
-    return `<details class="river-group"${different||ordered.length===1?' open':''}><summary><span class="river-tag${different?' changed':''}">${tag}</span><span>${winner}</span><small>${g.cards.length} 张</small></summary><div class="river-cards">${cards}</div></details>`;
+    return `<details class="river-group" data-river-count="${g.cards.length}"><summary><span class="river-tag${different?' changed':''}">${tag}</span><span>${winner}</span><small>${g.cards.length} 张</small></summary><div class="river-cards">${cards}</div></details>`;
   }).join('');
-  return `<section class="river-section" aria-labelledby="river-title"><h3 id="river-title">哪张河牌会改变结果？</h3><p class="subtext">剩余 ${r.rivers.length} 张牌，${changes?'其中 '+changes+' 张会改变领先名单。':'均不改变领先名单。'}点击牌面查看最终牌局。</p>${groupsHTML}</section>`;
+  return `<section class="river-section" aria-labelledby="river-title"><h3 id="river-title">哪张河牌会改变结果？</h3><p class="subtext">剩余 ${r.rivers.length} 张牌，其中 ${changes} 张会改变结果。点击牌面添加河牌。</p>${groupsHTML}</section>`;
 }
 function previewRiver(card){
   if(busy||!result?.rivers?.some(r=>r.card===card))return;
@@ -133,8 +142,10 @@ function showResults(){
   const reason=p.reason.replaceAll('玩家一','__LEFT__').replaceAll('玩家二',seatLabel(p.reference)+' ').replaceAll('__LEFT__',seatLabel(detailSeat)+' ');
   $('result-content').innerHTML=`<h3 class="result-title">${title}</h3><p class="subtext">${finished?'公共牌已全部发出，以下为最终摊牌结果。':'当前领先不代表最终获胜。下表精确枚举所有剩余公共牌。'}</p><div class="prob-head"><span>全桌 · 最终结果概率</span><small>${outcomeLabel(r.total)}</small></div><div class="prob-table-wrap"><table class="prob-table"><caption>点击任意玩家所在行，查看其牌力解释</caption><thead><tr><th>玩家</th><th>独赢</th><th>共同获胜</th><th>落败</th><th>权益</th></tr></thead><tbody>${rows}</tbody></table></div><div class="detail-heading"><h3>${seatLabel(detailSeat)} · 牌力详情</h3><span>${p.hand.category}</span></div><div class="mini-cards">${p.hand.best.map(c=>cardHTML(c,p.decisive.includes(c)?'mini decisive':'mini')).join('')}</div><p class="rank-note">${p.decisive.length?'金色边框为与对比玩家比较时的关键牌。':'与对比玩家的最佳五张等值，没有单独决定胜负的牌。'}</p><div class="explanation"><strong>${finished?'摊牌比较':'当前牌力比较'} · 对比${seatLabel(p.reference)}</strong><p>${reason}</p></div><p class="subtext">${r.leaders.includes(detailSeat)?'当前最强玩家与其最强对手比较，':'此玩家与当前最强玩家比较，'} 概率按全桌计算。</p>`;
   const riversHTML=riverSection(r);
+  riverLayoutObserver.disconnect();
   $('river-content').innerHTML=riversHTML;
   $('river-content').hidden=!riversHTML;
+  for(const group of document.querySelectorAll('.river-group'))riverLayoutObserver.observe(group);
   for(const card of document.querySelectorAll('[data-river]'))card.onclick=()=>previewRiver(card.dataset.river);
   if($('back-to-turn'))$('back-to-turn').onclick=returnToTurn;
   for(const row of document.querySelectorAll('[data-result-seat]'))row.onclick=event=>{
@@ -202,12 +213,16 @@ function tableImage(snapshot,analysis,date){
   ctx.fillStyle='#101b19';ctx.fillRect(0,0,width,height);
   const text=(value,x,y,size=18,color=ink,weight=400,align='left')=>{ctx.font=`${weight} ${size}px "Microsoft YaHei", "Noto Sans CJK SC", sans-serif`;ctx.fillStyle=color;ctx.textAlign=align;ctx.fillText(value,x,y);};
   const box=(x,y,w,h,fill,stroke)=>{ctx.beginPath();ctx.roundRect(x,y,w,h,10);ctx.fillStyle=fill;ctx.fill();if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=1;ctx.stroke();}};
-  const card=(value,x,y,w=53,h=73)=>{
+  const card=(value,x,y,w=53)=>{
+    const h=w*7/5;
     box(x,y,w,h,value?'#f2efe4':'#253a2e',value?'#d2c397':'#49614e');
     if(!value){text('—',x+w/2,y+h/2+7,21,muted,400,'center');return;}
     const color='hd'.includes(value[1])?'#b74d42':'#24352d';
-    text(value[0]==='T'?'10':value[0],x+w/2,y+h*.4,w*.4,color,700,'center');
-    text(suits[value[1]],x+w/2,y+h*.8,w*.43,color,400,'center');
+    ctx.fillStyle=color;ctx.textAlign='center';
+    ctx.font=`bold ${w*22/50}px Georgia,serif`;
+    ctx.fillText(value[0]==='T'?'10':value[0],x+w/2,y+w*29/50);
+    ctx.font=`${w*20/50}px Georgia,serif`;
+    ctx.fillText(suits[value[1]],x+w/2,y+w*51/50);
   };
   text("MoonHold'em",48,67,34,gold,650);
   text('牌局快照',952,65,21,ink,500,'right');
@@ -228,7 +243,7 @@ function tableImage(snapshot,analysis,date){
     box(48,y,904,rowHeight-10,leading?'#29392d':'#172522',leading?'#8e8055':'#30423b');
     text(`玩家 ${i+1}`,68,y+30,18,leading?gold:ink,600);
     if(leading)text(boardCount===5?'获胜':'当前领先',68,y+60,12,gold);
-    hand.forEach((c,j)=>card(c,171+j*63,y+16,49,70));
+    hand.forEach((c,j)=>card(c,171+j*63,y+16,49));
     text(p?p.hand.category:'未计算',330,y+47,19,p?ink:muted,500);
     if(p){
       const values=[p.wins/analysis.total,p.ties/analysis.total,p.losses/analysis.total,p.equity];
