@@ -2,7 +2,7 @@
 
 MoonHold'em 是一个使用 MoonBit 编写的德州扑克规则与牌力分析项目。它提供标准 52 张牌的牌型判断、最佳五张选择、多人摊牌比较和精确胜负概率计算，并配有一个可以直接操作的网页界面。
 
-![alt text](./_build/multiplayer-desktop.png)
+![MoonHold'em 桌面牌局分析界面](./images/multiplayer-desktop.png)
 
 项目名称在代码中使用 `MoonHoldem`，网页界面使用 `MoonHold'em`。
 
