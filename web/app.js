@@ -369,3 +369,28 @@ $('download-image').onclick=async()=>{
     exporting=false;button.innerHTML='<span aria-hidden="true">↓</span> 下载牌局图片';render();
   }
 };
+
+// Reveal stable sections once; rebuilding cards/results never replays the entrance.
+function setupScrollReveal(){
+  const motion=matchMedia('(prefers-reduced-motion: reduce)');
+  if(motion.matches||!('IntersectionObserver' in window))return;
+  const targets=[...document.querySelectorAll('.intro .eyebrow,.intro h1,.intro .lead,.intro-number,.workspace,.results,#river-content,.notes>div,body>footer')];
+  const running=new Map();
+  const finish=element=>{element.classList.remove('reveal-pending');running.get(element)?.cancel();running.delete(element);observer.unobserve(element);};
+  const observer=new IntersectionObserver(entries=>{
+    let order=0;
+    for(const entry of entries){
+      if(!entry.isIntersecting||entry.target.hidden)continue;
+      const element=entry.target;observer.unobserve(element);element.classList.remove('reveal-pending');
+      const animation=element.animate([{opacity:0,transform:'translateY(22px)'},{opacity:1,transform:'translateY(0)'}],{duration:700,delay:Math.min(order++*65,195),easing:'cubic-bezier(.22,1,.36,1)',fill:'both'});
+      running.set(element,animation);animation.onfinish=()=>{animation.cancel();running.delete(element);};
+    }
+  },{threshold:0,rootMargin:'0px 0px -24px 0px'});
+  targets.forEach(element=>{element.classList.add('reveal-pending');observer.observe(element);});
+  // Finish before interactions so card-flight measurements use settled geometry.
+  const finishInteracted=event=>{for(const element of targets)if(element.contains(event.target))finish(element);};
+  document.addEventListener('pointerdown',finishInteracted,true);
+  document.addEventListener('focusin',finishInteracted,true);
+  motion.addEventListener('change',()=>{if(motion.matches){targets.forEach(finish);observer.disconnect();}});
+}
+setupScrollReveal();
