@@ -7,7 +7,8 @@
 <section class="intro"><div><p class="eyebrow">TEXAS HOLD’EM</p><h1>让每一手牌，<em>都有答案。</em></h1><p class="lead">选择玩家底牌与公共牌，计算牌力与胜负概率。</p></div><div class="intro-number">52<span>总牌数</span></div></section>
 <div class="layout"><section class="workspace">
 <div class="section-title"><h2><span>01</span> 设置牌局</h2><button id="reset" class="text-button">清空牌桌 ↺</button></div>
-<div class="presets"><span>试试示例</span><button data-preset="turn">AA 对 KK</button><button data-preset="flush">同花听牌</button><button data-preset="tie">公共牌平局</button><button data-preset="four">四人对局</button></div>
+<div class="presets"><span>试试示例</span><button data-preset="turn">AA 对 KK</button><button data-preset="flush">同花听牌</button><button data-preset="straight">顺子听牌</button><button data-preset="wheel">A 小顺子</button><button data-preset="tie">公共牌平局</button><button data-preset="split">多人分池</button><button data-preset="four">四人对局</button><button data-preset="nine">九人对局</button></div>
+<p id="preset-note" class="preset-note" hidden></p>
 <div class="table">
 <div class="seat-controls"><span id="seat-count">2 人牌桌</span><button id="add-seat" type="button">＋ 添加玩家</button></div><div id="players" class="players multi-players"></div>
 <div class="board-heading"><h3>公共牌 <small>BOARD</small></h3><span id="stage">转牌 · 4 / 5</span></div><div id="board-slots" class="slots board"></div>

@@ -4,8 +4,22 @@ const suitNames = {s:'黑桃',h:'红桃',d:'方块',c:'梅花'};
 const presets = {
   turn:{hands:[['As','Ad'],['Ks','Kd']],board:['2c','3d','7h','9s',null]},
   flush:{hands:[['Ah','Kh'],['Qs','Qd']],board:['2h','7h','Qc',null,null]},
+  straight:{hands:[['8s','9d'],['Ac','Ad']],board:['6c','7h','Ks','2d',null]},
+  wheel:{hands:[['As','2d'],['Kh','Kd']],board:['3c','4h','5s','9d','Jc']},
   tie:{hands:[['2c','3c'],['4d','5d']],board:['As','Ks','Qs','Js','Ts']},
-  four:{hands:[['As','Ad'],['Ks','Kd'],['Qs','Qd'],['Js','Jd']],board:['2c','3d','7h','9s',null]}
+  split:{hands:[['As','2c'],['Ah','3c'],['9s','9d']],board:['Ks','Qd','Jh','Tc','4s']},
+  four:{hands:[['As','Ad'],['Ks','Kd'],['Qs','Qd'],['Js','Jd']],board:['2c','3d','7h','9s',null]},
+  nine:{hands:[['As','Ad'],['Kh','Qh'],['8c','9c'],['7d','7s'],['Ac','Kc'],['Qd','Qc'],['Jh','Jd'],['6d','6s'],['5s','4s']],board:['2h','7h','Tc','Js',null]}
+};
+const presetDescriptions={
+  turn:'大对子对决：AA 当前领先，KK 需要剩余两张 K 中的一张才能反超。',
+  flush:'同花听牌对三条：红桃能帮助 AK 成花，但还要考虑对手补成葫芦或四条。',
+  straight:'两头顺子听牌：8、9 配合公共牌 6、7，河牌出现 5 或 10 就能击败 AA。',
+  wheel:'A 作小牌：A、2、3、4、5 组成 5 高顺子，牌力高于一对 K。',
+  tie:'公共牌决定平局：五张公共牌已经组成皇家同花顺，两位玩家共享最佳五张。',
+  split:'三人局、两人分池：玩家 1 和 2 都组成 A 高顺子，各占一半权益；玩家 3 落败。',
+  four:'四组对子同桌：比较 AA、KK、QQ、JJ 的胜率，以及各自补成三条后的结果。',
+  nine:'九人混合牌局：顺子当前领先，同桌还有三条、对子、同花听牌与更大顺子的机会。'
 };
 let state, selected=null, revision=0, busy=false, exporting=false, result=null, detailSeat=0;
 let riverPreview=null;
@@ -48,6 +62,16 @@ function removeSeat(index){
   detailSeat=0;invalidate();render();
 }
 function render(){
+  const activePreset=Object.keys(presets).find(key=>{
+    const preset=presets[key];
+    return preset.hands.length===state.hands.length&&preset.board.every((card,i)=>card===state.board[i])&&preset.hands.every((hand,i)=>hand.every((card,j)=>card===state.hands[i][j]));
+  });
+  for(const button of document.querySelectorAll('[data-preset]')){
+    button.setAttribute('aria-pressed',String(button.dataset.preset===activePreset));
+    button.title=presetDescriptions[button.dataset.preset];
+  }
+  $('preset-note').textContent=activePreset?presetDescriptions[activePreset]:'';
+  $('preset-note').hidden=!activePreset;
   document.getElementById("download-image").disabled=exporting||busy||![...state.hands.flat(),...state.board].some(Boolean);
   const table=$('players');table.replaceChildren();
   state.hands.forEach((cards,seat)=>{

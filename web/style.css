@@ -56,6 +56,8 @@
 .river-preview button{border:1px solid #8a754f;color:var(--gold);background:transparent;border-radius:6px;padding:10px 12px}
 .river-group summary:focus-visible{outline:2px solid var(--gold);outline-offset:-3px}
 .intro-number{text-align:center}
+.presets button[aria-pressed="true"]{border-color:var(--gold);color:var(--gold);background:#e1bd7814}
+.preset-note{margin:-6px 0 18px;color:var(--muted);font-size:11px;line-height:1.8}
 
 /* One 5:7 card shape and a shared scalable face at every display size. */
 :root{--card-ratio:5/7}
