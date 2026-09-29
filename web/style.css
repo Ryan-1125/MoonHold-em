@@ -77,3 +77,10 @@
 .river-card.red{color:#b74d42}
 @media(max-width:450px){.card-slot{width:min(47px,calc((100% - 9px)/2))}.board .card-slot{width:min(47px,calc((100% - 36px)/5))}}
 @media(max-width:600px){.guide-row{grid-template-columns:22px minmax(0,1fr)}}
+
+.player-name{min-width:0;width:100%;border:1px solid transparent;border-radius:4px;background:transparent;color:var(--gold);font:inherit;font-weight:600;padding:4px 5px;box-sizing:border-box;text-overflow:ellipsis}
+.player-name::placeholder{color:var(--gold);opacity:1}
+.player-name:hover{border-color:#e1bd7855}
+.player-name:focus{outline:1px solid var(--gold);border-color:var(--gold);background:#101b19}
+.seat-header .remove-seat{flex-shrink:0}
+.prob-table th,.result-title,.detail-heading h3,.explanation,.river-group summary>span{overflow-wrap:anywhere}

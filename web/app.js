@@ -35,7 +35,10 @@ const riverLayoutObserver=new ResizeObserver(entries=>{
     target.classList.toggle('river-inline',requiredWidth<=target.clientWidth-24);
   }
 });
-const seatLabel=i=>`玩家 ${i+1}`;
+const cleanName=value=>typeof value==='string'?Array.from(value.trim()).slice(0,12).join(''):'';
+const seatLabel=(i,table=state)=>cleanName(table.names?.[i])||`玩家 ${i+1}`;
+const escapeHTML=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const nameHTML=i=>escapeHTML(seatLabel(i));
 const outcomeLabel=n=>n===1?'仅有一种结局':`共有 ${n.toLocaleString()} 种结局`;
 const selectedCards=()=>selected ? (selected.seat===-1?state.board:state.hands[selected.seat]) : null;
 function cardFace(card){
@@ -56,7 +59,7 @@ function slot(card,seat,index){
 }
 function removeSeat(index){
   if(state.hands.length<=2)return;
-  state.hands.splice(index,1);
+  state.hands.splice(index,1);state.names?.splice(index,1);
   if(selected?.seat===index)selected=null;
   else if(selected && selected.seat>index)selected.seat--;
   detailSeat=0;invalidate();render();
@@ -77,7 +80,10 @@ function render(){
   state.hands.forEach((cards,seat)=>{
     const panel=document.createElement('div');panel.className='seat'+(result?.leaders.includes(seat)?' leading':'');
     const header=document.createElement('div');header.className='seat-header';
-    const heading=document.createElement('h3');heading.textContent=seatLabel(seat);header.append(heading);
+    const heading=document.createElement('input');heading.className='player-name';heading.type='text';heading.maxLength=24;heading.value=state.names?.[seat]||'';heading.placeholder=`玩家 ${seat+1}`;heading.setAttribute('aria-label',`玩家 ${seat+1}的名称`);heading.title='点击修改名称，最多 12 个字；留空恢复默认';
+    heading.onchange=()=>{state.names??=state.hands.map(()=>'');state.names[seat]=cleanName(heading.value);if(riverPreview)riverPreview.names=[...state.names];saveTable();render();if(result)showResults();};
+    heading.onkeydown=event=>{if(event.key==='Enter'){event.preventDefault();heading.blur();}if(event.key==='Escape'){heading.value=state.names?.[seat]||'';heading.blur();}};
+    header.append(heading);
     const remove=document.createElement('button');remove.className='remove-seat';remove.textContent='×';remove.title=`移除${seatLabel(seat)}`;remove.setAttribute('aria-label',remove.title);remove.disabled=state.hands.length<=2;remove.onclick=()=>removeSeat(seat);header.append(remove);
     panel.append(header);const slots=document.createElement('div');slots.className='slots';cards.forEach((card,index)=>slots.append(slot(card,seat,index)));panel.append(slots);
     const badge=document.createElement('p');badge.className='seat-state';badge.textContent=result?.leaders.includes(seat)?(state.board.filter(Boolean).length===5?'本局获胜':'当前领先'):'两张底牌';panel.append(badge);table.append(panel);
@@ -126,15 +132,15 @@ function riverSection(r){
     const different=changed(g);
     const reversed=g.winners.every(i=>!r.leaders.includes(i));
     const tag=reversed?'绝地反击':g.winners.length>1?'共同获胜':different?'决出胜者':'保持领先';
-    const winner=g.winners.map(seatLabel).join('、')+' '+(g.winners.length>1?'共同获胜':'获胜');
+    const winner=g.winners.map(i=>seatLabel(i)).join('、')+' '+(g.winners.length>1?'共同获胜':'获胜');
     const ranks='23456789TJQKA';
     const cards=['s','h','d','c'].map(suit=>{
       const suited=g.cards.filter(card=>card[1]===suit).sort((a,b)=>ranks.indexOf(a[0])-ranks.indexOf(b[0]));
       if(!suited.length)return '';
-      const buttons=suited.map(card=>`<button type="button" class="river-card${'hd'.includes(suit)?' red':''}" data-river="${card}" aria-label="${suitNames[suit]}${card[0]==='T'?'10':card[0]}：${winner}，查看最终牌局">${cardFace(card)}</button>`).join('');
+      const buttons=suited.map(card=>`<button type="button" class="river-card${'hd'.includes(suit)?' red':''}" data-river="${card}" aria-label="${suitNames[suit]}${card[0]==='T'?'10':card[0]}：${escapeHTML(winner)}，查看最终牌局">${cardFace(card)}</button>`).join('');
       return `<div class="river-suit-row" role="group" aria-label="${suitNames[suit]}"><span class="river-suit-label" aria-hidden="true">${suits[suit]}</span><div class="river-suit-cards">${buttons}</div></div>`;
     }).join('');
-    return `<details class="river-group" data-river-count="${g.cards.length}"><summary><span class="river-tag${different?' changed':''}">${tag}</span><span>${winner}</span><small>${g.cards.length} 张</small></summary><div class="river-cards">${cards}</div></details>`;
+    return `<details class="river-group" data-river-count="${g.cards.length}"><summary><span class="river-tag${different?' changed':''}">${tag}</span><span>${escapeHTML(winner)}</span><small>${g.cards.length} 张</small></summary><div class="river-cards">${cards}</div></details>`;
   }).join('');
   return `<section class="river-section" aria-labelledby="river-title"><h3 id="river-title">哪张河牌能扭转局势？</h3><p class="subtext">剩余 ${r.rivers.length} 张牌，其中 ${changes} 张会改变结果。点击牌面添加河牌。</p>${groupsHTML}</section>`;
 }
@@ -163,11 +169,11 @@ function returnToTurn(){
 function showResults(){
   const r=result,finished=state.board.filter(Boolean).length===5;
   const pct=n=>(n/r.total*100).toFixed(2);
-  const title=r.leaders.length===state.hands.length?(finished?'所有玩家平局':'所有玩家当前牌力相同'):r.leaders.map(seatLabel).join('、')+' '+(finished?(r.leaders.length>1?'共同获胜':'获胜'):'当前领先');
-  const rows=r.players.map((p,i)=>`<tr data-result-seat="${i}" class="${i===detailSeat?'selected-result':''}"><th scope="row"><button class="result-seat" data-seat="${i}" aria-pressed="${i===detailSeat}">${seatLabel(i)}${r.leaders.includes(i)?'<span class="leader-star" aria-label="当前最强"> ★</span>':''}</button></th><td>${pct(p.wins)}%</td><td>${pct(p.ties)}%</td><td>${pct(p.losses)}%</td><td class="equity-cell">${(p.equity*100).toFixed(2)}%</td></tr>`).join('');
+  const title=r.leaders.length===state.hands.length?(finished?'所有玩家平局':'所有玩家当前牌力相同'):r.leaders.map(i=>seatLabel(i)).join('、')+' '+(finished?(r.leaders.length>1?'共同获胜':'获胜'):'当前领先');
+  const rows=r.players.map((p,i)=>`<tr data-result-seat="${i}" class="${i===detailSeat?'selected-result':''}"><th scope="row"><button class="result-seat" data-seat="${i}" aria-pressed="${i===detailSeat}">${nameHTML(i)}${r.leaders.includes(i)?'<span class="leader-star" aria-label="当前最强"> ★</span>':''}</button></th><td>${pct(p.wins)}%</td><td>${pct(p.ties)}%</td><td>${pct(p.losses)}%</td><td class="equity-cell">${(p.equity*100).toFixed(2)}%</td></tr>`).join('');
   const p=r.players[detailSeat];
   const reason=p.reason.replaceAll('玩家一','__LEFT__').replaceAll('玩家二',seatLabel(p.reference)+' ').replaceAll('__LEFT__',seatLabel(detailSeat)+' ');
-  $('result-content').innerHTML=`<h3 class="result-title">${title}</h3><p class="subtext">${finished?'公共牌已全部发出，以下为最终摊牌结果。':'当前领先不代表最终获胜。下表精确枚举所有剩余公共牌。'}</p><div class="prob-head"><span>全桌 · 最终结果概率</span><small>${outcomeLabel(r.total)}</small></div><div class="prob-table-wrap"><table class="prob-table"><caption>点击任意玩家所在行，查看其牌力解释</caption><thead><tr><th>玩家</th><th>独赢</th><th>共同获胜</th><th>落败</th><th>权益</th></tr></thead><tbody>${rows}</tbody></table></div><div class="detail-heading"><h3>${seatLabel(detailSeat)} · 牌力详情</h3><span>${p.hand.category}</span></div><div class="mini-cards">${p.hand.best.map(c=>cardHTML(c,p.decisive.includes(c)?'mini decisive':'mini')).join('')}</div><p class="rank-note">${p.decisive.length?'金色边框为与对比玩家比较时的关键牌。':'与对比玩家的最佳五张等值，没有单独决定胜负的牌。'}</p><div class="explanation"><strong>${finished?'摊牌比较':'当前牌力比较'} · 对比${seatLabel(p.reference)}</strong><p>${reason}</p></div><p class="subtext">${r.leaders.includes(detailSeat)?'当前最强玩家与其最强对手比较，':'此玩家与当前最强玩家比较，'} 概率按全桌计算。</p>`;
+  $('result-content').innerHTML=`<h3 class="result-title">${escapeHTML(title)}</h3><p class="subtext">${finished?'公共牌已全部发出，以下为最终摊牌结果。':'当前领先不代表最终获胜。下表精确枚举所有剩余公共牌。'}</p><div class="prob-head"><span>全桌 · 最终结果概率</span><small>${outcomeLabel(r.total)}</small></div><div class="prob-table-wrap"><table class="prob-table"><caption>点击任意玩家所在行，查看其牌力解释</caption><thead><tr><th>玩家</th><th>独赢</th><th>共同获胜</th><th>落败</th><th>权益</th></tr></thead><tbody>${rows}</tbody></table></div><div class="detail-heading"><h3>${nameHTML(detailSeat)} · 牌力详情</h3><span>${p.hand.category}</span></div><div class="mini-cards">${p.hand.best.map(c=>cardHTML(c,p.decisive.includes(c)?'mini decisive':'mini')).join('')}</div><p class="rank-note">${p.decisive.length?'金色边框为与对比玩家比较时的关键牌。':'与对比玩家的最佳五张等值，没有单独决定胜负的牌。'}</p><div class="explanation"><strong>${finished?'摊牌比较':'当前牌力比较'} · 对比${nameHTML(p.reference)}</strong><p>${escapeHTML(reason)}</p></div><p class="subtext">${r.leaders.includes(detailSeat)?'当前最强玩家与其最强对手比较，':'此玩家与当前最强玩家比较，'} 概率按全桌计算。</p>`;
   const riversHTML=riverSection(r);
   riverLayoutObserver.disconnect();
   $('river-content').innerHTML=riversHTML;
@@ -195,8 +201,8 @@ worker.onmessage=({data})=>{
 worker.onerror=()=>{busy=false;render();$('message').textContent='计算模块加载失败，请重新运行 node scripts/serve-web.mjs 并刷新页面。';};
 $('calculate').onclick=calculate;
 $('remove').onclick=()=>{if(!selected)return;selectedCards()[selected.index]=null;invalidate();render();};
-$('reset').onclick=()=>{state={hands:state.hands.map(()=>[null,null]),board:[null,null,null,null,null]};selected=null;detailSeat=0;invalidate();render();};
-$('add-seat').onclick=()=>{if(state.hands.length>=9)return;state.hands.push([null,null]);selected={seat:state.hands.length-1,index:0};invalidate();render();};
+$('reset').onclick=()=>{state={names:state.names,hands:state.hands.map(()=>[null,null]),board:[null,null,null,null,null]};selected=null;detailSeat=0;invalidate();render();};
+$('add-seat').onclick=()=>{if(state.hands.length>=9)return;state.names??=state.hands.map(()=>'');state.names.push('');state.hands.push([null,null]);selected={seat:state.hands.length-1,index:0};invalidate();render();};
 for(const b of document.querySelectorAll('[data-preset]'))b.onclick=()=>load(b.dataset.preset);
 const restoredTable=restoreTable();
 if(restoredTable){state=restoredTable;render();calculate();}else{load('turn');}
@@ -209,7 +215,7 @@ handGuide.addEventListener('close',()=>$('open-guide').focus());
 // Only card selections are persisted; derived probabilities are recalculated.
 function saveTable(){
   try{
-    localStorage.setItem('moonholdem.table.v1',JSON.stringify({version:1,hands:state.hands,board:state.board}));
+    localStorage.setItem('moonholdem.table.v1',JSON.stringify({version:1,hands:state.hands,board:state.board,names:state.names}));
   }catch{
   }
 }
@@ -224,7 +230,7 @@ function restoreTable(){
     if(!cards.every(c=>c===null||(typeof c==='string'&&/^[2-9TJQKA][shdc]$/.test(c))))throw Error('Invalid saved cards');
     const used=cards.filter(Boolean);
     if(new Set(used).size!==used.length)throw Error('Duplicate saved cards');
-    return {hands:saved.hands,board:saved.board};
+    return {hands:saved.hands,board:saved.board,names:saved.hands.map((_,i)=>cleanName(saved.names?.[i]))};
   }catch{
     return null;
   }
@@ -269,7 +275,9 @@ function tableImage(snapshot,analysis,date){
   snapshot.hands.forEach((hand,i)=>{
     const y=rowsTop+i*rowHeight,p=analysis?.players[i],leading=analysis?.leaders.includes(i);
     box(48,y,904,rowHeight-10,leading?'#29392d':'#172522',leading?'#8e8055':'#30423b');
-    text(`玩家 ${i+1}`,68,y+30,18,leading?gold:ink,600);
+    const label=seatLabel(i,snapshot);ctx.font='600 18px "Microsoft YaHei", sans-serif';
+    const nameSize=Math.min(18,90/Math.max(1,ctx.measureText(label).width)*18);
+    text(label,68,y+30,nameSize,leading?gold:ink,600);
     if(leading)text(boardCount===5?'获胜':'当前领先',68,y+60,12,gold);
     hand.forEach((c,j)=>card(c,171+j*63,y+16,49));
     text(p?p.hand.category:'未计算',330,y+47,19,p?ink:muted,500);
