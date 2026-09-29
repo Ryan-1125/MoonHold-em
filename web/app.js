@@ -86,7 +86,7 @@ function render(){
     header.append(heading);
     const remove=document.createElement('button');remove.className='remove-seat';remove.textContent='×';remove.title=`移除${seatLabel(seat)}`;remove.setAttribute('aria-label',remove.title);remove.disabled=state.hands.length<=2;remove.onclick=()=>removeSeat(seat);header.append(remove);
     panel.append(header);const slots=document.createElement('div');slots.className='slots';cards.forEach((card,index)=>slots.append(slot(card,seat,index)));panel.append(slots);
-    const badge=document.createElement('p');badge.className='seat-state';badge.textContent=result?.leaders.includes(seat)?(state.board.filter(Boolean).length===5?'本局获胜':'当前领先'):'两张底牌';panel.append(badge);table.append(panel);
+    const badge=document.createElement('p');badge.className='seat-state';badge.textContent=result?.leaders.includes(seat)?(state.board.filter(Boolean).length===5?'本局获胜':'当前领先'):'';panel.append(badge);table.append(panel);
   });
   $('board-slots').replaceChildren(...state.board.map((card,index)=>slot(card,-1,index)));
   $('seat-count').textContent=`${state.hands.length} 人牌桌`;
