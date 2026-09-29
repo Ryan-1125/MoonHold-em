@@ -38,20 +38,20 @@
 .river-tag{font-size:10px;color:var(--muted);background:#ffffff08;border-radius:4px;padding:3px 5px;justify-self:start}
 .river-tag.changed{color:var(--gold);background:#e1bd7818}
 .river-cards{display:flex;flex-direction:column;gap:10px;padding:2px 12px 14px}
-.river-suit-row{display:grid;grid-template-columns:14px minmax(0,1fr);gap:6px;align-items:start}
+.river-suit-row{display:grid;grid-template-columns:44px minmax(0,1fr);gap:6px;align-items:start}
 .river-suit-row+.river-suit-row{border-top:1px solid var(--line);padding-top:10px}
-.river-suit-label{color:var(--muted);font:14px Georgia,serif;padding-top:21px}
+.river-suit-label{color:var(--muted);font:14px Georgia,serif;width:44px;aspect-ratio:var(--card-ratio);display:flex;align-items:center;justify-content:center}
 .river-suit-cards{display:flex;flex-wrap:wrap;gap:6px}
 .river-inline .river-cards{flex-direction:row;gap:6px}
-.river-inline .river-suit-row,.river-inline .river-suit-cards{display:contents}
-.river-inline .river-suit-label{display:none}
+.river-inline .river-suit-row{display:flex;align-items:center;gap:6px;border:0;padding:0}
+.river-inline .river-suit-cards{flex-wrap:nowrap}
+.river-inline .river-suit-label{width:44px;flex:0 0 44px;padding:0}
 .river-card{border:1px solid transparent;border-radius:5px;padding:3px;background:transparent;width:44px;height:60px;flex:0 0 44px}
 .river-face{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;width:100%;height:100%;background:#eeeade;color:#26372e;border-radius:4px;font-family:Georgia,serif}
 .river-face.red{color:#b74d42}
 .river-rank{font-size:18px;font-weight:bold;line-height:1}
 .river-suit{font-size:17px;line-height:1}
-.river-card.river-changed{border-color:#8a754f}
-.river-card:hover{background:#e1bd7828;border-color:var(--gold)}
+.river-card:not(:disabled):hover{background:var(--gold);transform:translateY(-2px)}
 .river-preview{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:20px;padding-top:16px;border-top:1px solid var(--line);font-size:11px;color:var(--muted)}
 .river-preview button{border:1px solid #8a754f;color:var(--gold);background:transparent;border-radius:6px;padding:10px 12px}
 .river-group summary:focus-visible{outline:2px solid var(--gold);outline-offset:-3px}
@@ -73,6 +73,5 @@
 .mini-cards .mini{width:44px;min-width:0;flex:0 1 44px}
 .river-card{width:44px;flex:0 0 44px;background:#eeeade;color:#26372e;border:0}
 .river-card.red{color:#b74d42}
-.river-card.river-changed{outline:1px solid #8a754f;outline-offset:2px}
 @media(max-width:450px){.card-slot{width:min(47px,calc((100% - 9px)/2))}.board .card-slot{width:min(47px,calc((100% - 36px)/5))}}
 @media(max-width:600px){.guide-row{grid-template-columns:22px minmax(0,1fr)}}

@@ -15,7 +15,10 @@ const worker=new Worker('worker.js',{type:'module'});
 const riverLayoutObserver=new ResizeObserver(entries=>{
   for(const {target} of entries){
     const count=Number(target.dataset.riverCount);
-    target.classList.toggle('river-inline',count*44+(count-1)*6<=target.clientWidth-24);
+    const suitCount=target.querySelectorAll('.river-suit-row').length;
+    const slots=count+suitCount;
+    const requiredWidth=slots*44+(slots-1)*6;
+    target.classList.toggle('river-inline',requiredWidth<=target.clientWidth-24);
   }
 });
 const seatLabel=i=>`玩家 ${i+1}`;
@@ -98,18 +101,18 @@ function riverSection(r){
   const groupsHTML=ordered.map(g=>{
     const different=changed(g);
     const reversed=g.winners.every(i=>!r.leaders.includes(i));
-    const tag=reversed?'逆转':g.winners.length>1?'共同获胜':different?'决出胜者':'保持领先';
+    const tag=reversed?'绝地反击':g.winners.length>1?'共同获胜':different?'决出胜者':'保持领先';
     const winner=g.winners.map(seatLabel).join('、')+' '+(g.winners.length>1?'共同获胜':'获胜');
     const ranks='23456789TJQKA';
     const cards=['s','h','d','c'].map(suit=>{
       const suited=g.cards.filter(card=>card[1]===suit).sort((a,b)=>ranks.indexOf(a[0])-ranks.indexOf(b[0]));
       if(!suited.length)return '';
-      const buttons=suited.map(card=>`<button type="button" class="river-card${different?' river-changed':''}${'hd'.includes(suit)?' red':''}" data-river="${card}" aria-label="${suitNames[suit]}${card[0]==='T'?'10':card[0]}：${winner}，查看最终牌局">${cardFace(card)}</button>`).join('');
+      const buttons=suited.map(card=>`<button type="button" class="river-card${'hd'.includes(suit)?' red':''}" data-river="${card}" aria-label="${suitNames[suit]}${card[0]==='T'?'10':card[0]}：${winner}，查看最终牌局">${cardFace(card)}</button>`).join('');
       return `<div class="river-suit-row" role="group" aria-label="${suitNames[suit]}"><span class="river-suit-label" aria-hidden="true">${suits[suit]}</span><div class="river-suit-cards">${buttons}</div></div>`;
     }).join('');
     return `<details class="river-group" data-river-count="${g.cards.length}"><summary><span class="river-tag${different?' changed':''}">${tag}</span><span>${winner}</span><small>${g.cards.length} 张</small></summary><div class="river-cards">${cards}</div></details>`;
   }).join('');
-  return `<section class="river-section" aria-labelledby="river-title"><h3 id="river-title">哪张河牌会改变结果？</h3><p class="subtext">剩余 ${r.rivers.length} 张牌，其中 ${changes} 张会改变结果。点击牌面添加河牌。</p>${groupsHTML}</section>`;
+  return `<section class="river-section" aria-labelledby="river-title"><h3 id="river-title">哪张河牌能扭转局势？</h3><p class="subtext">剩余 ${r.rivers.length} 张牌，其中 ${changes} 张会改变结果。点击牌面添加河牌。</p>${groupsHTML}</section>`;
 }
 function previewRiver(card){
   if(busy||!result?.rivers?.some(r=>r.card===card))return;
