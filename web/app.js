@@ -49,6 +49,7 @@ function cardHTML(card,cls='mini') {
 }
 function invalidate(){riverPreview=null;riverNavigation=null;saveTable();revision++;busy=false;result=null;$('result-content').innerHTML=empty;$('river-content').replaceChildren();$('river-content').hidden=true;$('result-status').textContent='牌面已更新';$('message').textContent='';}
 let finishCardFlight=null;
+let finishDeckEntrance=null;
 function flyCard(card,from,seat,index,returning=false){
   if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
   const destination=document.querySelector(returning?`[data-deck-card="${card}"]`:`[data-card-seat="${seat}"][data-card-index="${index}"]`);
@@ -126,10 +127,13 @@ function render(selectionOnly=false){
   $('seat-count').textContent=`${state.hands.length} 人牌桌`;
   $('add-seat').disabled=state.hands.length>=9;
   const used=new Set([...state.hands.flat(),...state.board].filter(Boolean));
-  const deck=$('deck');deck.replaceChildren();
+  const deck=$('deck');
+  if(!finishDeckEntrance){
+  deck.replaceChildren();
   for(const suit of ['s','h','d','c'])for(const rank of ['2','3','4','5','6','7','8','9','T','J','Q','K','A']){
     const card=rank+suit,b=document.createElement('button');b.dataset.deckCard=card;b.className='deck-card'+('hd'.includes(suit)?' red':'');b.innerHTML=cardFace(card);b.disabled=!selected||used.has(card);b.classList.toggle('used-card',used.has(card));b.setAttribute('aria-label',suitNames[suit]+(rank==='T'?'10':rank));
     b.onclick=()=>{const target=selectedCards();if(!target||!selected||used.has(card))return;const from=b.getBoundingClientRect(),landing={...selected};target[selected.index]=card;invalidate();const next=target.findIndex(c=>!c);selected=next>=0?{seat:selected.seat,index:next}:null;render();flyCard(card,from,landing.seat,landing.index);};deck.append(b);
+  }
   }
   const count=state.board.filter(Boolean).length;
   $('stage').textContent=(count===3?'翻牌':count===4?'转牌':count===5?'河牌':'选择公共牌')+` · ${count} / 5`;
@@ -239,7 +243,7 @@ $('reset').onclick=()=>{state={names:state.names,hands:state.hands.map(()=>[null
 $('add-seat').onclick=()=>{if(state.hands.length>=9)return;state.names??=state.hands.map(()=>'');state.names.push('');state.hands.push([null,null]);selected={seat:state.hands.length-1,index:0};invalidate();render();};
 for(const b of document.querySelectorAll('[data-preset]'))b.onclick=()=>load(b.dataset.preset);
 const restoredTable=restoreTable();
-if(restoredTable){state=restoredTable;render();calculate();}else{load('turn');}
+if(restoredTable){state=restoredTable;render();calculate();}else{state={hands:[[null,null],[null,null]],board:[null,null,null,null,null]};render();}
 const handGuide=$('hand-guide');
 $('open-guide').onclick=()=>handGuide.showModal();
 $('close-guide').onclick=()=>handGuide.close();
@@ -394,3 +398,51 @@ function setupScrollReveal(){
   motion.addEventListener('change',()=>{if(motion.matches){targets.forEach(finish);observer.disconnect();}});
 }
 setupScrollReveal();
+
+// Decorative deck opening: no cards are dealt to players or changed in state.
+function setupDeckEntrance(){
+  const deck=$('deck'),motion=matchMedia('(prefers-reduced-motion: reduce)');
+  if(motion.matches||!('IntersectionObserver' in window))return;
+  deck.classList.add('deck-awaiting');
+  document.body.classList.add('restoring-deck');
+  let done=false,layer=null;const animations=[];
+  const cleanup=()=>{done=true;observer.disconnect();animations.forEach(a=>a.cancel());layer?.remove();deck.classList.remove('deck-awaiting');document.body.classList.remove('restoring-deck');deck.querySelectorAll('.deck-card').forEach(c=>c.style.visibility='');document.querySelectorAll('.entrance-revealed').forEach(c=>c.classList.remove('entrance-revealed'));document.removeEventListener('pointerdown',cleanup,true);document.removeEventListener('keydown',cleanup,true);window.removeEventListener('resize',cleanup);motion.removeEventListener('change',cleanup);if(finishDeckEntrance===cleanup)finishDeckEntrance=null;};
+  finishDeckEntrance=cleanup;
+  const observer=new IntersectionObserver(async entries=>{
+    if(done||!entries.some(e=>e.isIntersecting))return;
+    observer.disconnect();
+    const bounds=deck.getBoundingClientRect(),cards=[...deck.querySelectorAll('.deck-card')];
+    layer=document.createElement('div');layer.className='deck-entrance';layer.setAttribute('aria-hidden','true');deck.append(layer);
+    const tiles=cards.map((card,i)=>{
+      const rect=card.getBoundingClientRect(),tile=document.createElement('div');tile.className='entrance-tile';
+      Object.assign(tile.style,{left:(rect.left-bounds.left)+'px',top:(rect.top-bounds.top)+'px',width:rect.width+'px',height:rect.height+'px'});
+      tile.innerHTML='<div class="entrance-flipper"><div class="entrance-back"><span>M<span>♠</span></span></div><div class="entrance-front'+(card.classList.contains('red')?' red':'')+'">'+card.innerHTML+'</div></div>';
+      layer.append(tile);
+      const dx=bounds.width/2-rect.width/2-(rect.left-bounds.left),dy=bounds.height/2-rect.height/2-(rect.top-bounds.top);
+      const a=tile.animate([{transform:'translate('+dx+'px,'+dy+'px) rotate('+((i%5-2)*1.2)+'deg)'},{transform:'translate(0,0) rotate(0deg)'}],{duration:650,delay:i*9,easing:'cubic-bezier(.22,.8,.2,1)',fill:'both'});animations.push(a);return tile;
+    });
+    await Promise.all(animations.map(a=>a.finished.catch(()=>{})));if(done)return;
+    const destinations=new Map();
+    state.hands.forEach((hand,seat)=>hand.forEach((card,index)=>{if(card)destinations.set(card,{seat,index});}));
+    state.board.forEach((card,index)=>{if(card)destinations.set(card,{seat:-1,index});});
+    let flightOrder=0;
+    const flips=tiles.map(async(tile,i)=>{
+      const destination=destinations.get(cards[i].dataset.deckCard);
+      if(destination){
+        const target=document.querySelector(`[data-card-seat="${destination.seat}"][data-card-index="${destination.index}"]`);
+        const from=tile.getBoundingClientRect(),to=target.getBoundingClientRect();
+        tile.style.zIndex='10';tile.style.transformOrigin='top left';
+        const flight=tile.animate([{transform:'translate(0,0) scale(1)'},{transform:`translate(${to.left-from.left}px,${to.top-from.top}px) scale(${to.width/from.width},${to.height/from.height})`}],{duration:600,delay:flightOrder++*32,easing:'cubic-bezier(.22,.68,.12,1)',fill:'forwards'});
+        animations.push(flight);await flight.finished.catch(()=>{});if(done)return;
+        cards[i].style.visibility='visible';
+      }
+      const a=tile.firstElementChild.animate([{transform:'rotateY(0deg)'},{transform:'rotateY(180deg)'}],{duration:480,delay:destination?0:(i%13)*38+Math.floor(i/13)*65,easing:'cubic-bezier(.4,0,.2,1)',fill:'both'});
+      animations.push(a);await a.finished.catch(()=>{});if(done)return;
+      if(destination){document.querySelector(`[data-card-seat="${destination.seat}"][data-card-index="${destination.index}"]`)?.classList.add('entrance-revealed');tile.style.visibility='hidden';}
+    });
+    await Promise.all(flips);if(!done)cleanup();
+  },{threshold:0.15});
+  observer.observe(deck);
+  document.addEventListener('pointerdown',cleanup,true);document.addEventListener('keydown',cleanup,true);window.addEventListener('resize',cleanup);motion.addEventListener('change',cleanup);
+}
+setupDeckEntrance();
