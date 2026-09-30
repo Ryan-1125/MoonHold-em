@@ -39,7 +39,7 @@ const cleanName=value=>typeof value==='string'?Array.from(value.trim()).slice(0,
 const seatLabel=(i,table=state)=>cleanName(table.names?.[i])||`玩家 ${i+1}`;
 const escapeHTML=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const nameHTML=i=>`<span class="player-label" data-player-label="${i}">${escapeHTML(seatLabel(i))}</span>`;
-const outcomeLabel=n=>n===1?'仅有一种结局':`共有 ${n.toLocaleString()} 种结局`;
+const outcomeLabel=n=>n===1?'仅有 1 种结局':`共有 ${n.toLocaleString()} 种结局`;
 const selectedCards=()=>selected ? (selected.seat===-1?state.board:state.hands[selected.seat]) : null;
 function cardFace(card){
   return `<svg class="card-art" viewBox="0 0 50 70" aria-hidden="true" focusable="false"><text x="25" y="29" font-size="22" font-weight="bold">${card[0]==='T'?'10':card[0]}</text><text x="25" y="51" font-size="20">${suits[card[1]]}</text></svg>`;
@@ -155,6 +155,7 @@ function render(selectionOnly=false){
   $('calculate').disabled=!ready||busy;
   $('calculate').innerHTML=busy?'分析中…':'分析牌局 <span aria-hidden="true">→</span>';
   $('ready-note').textContent=ready?outcomeLabel(outcomes):'请选齐所有底牌和至少 3 张公共牌';
+  $('random-card').disabled=!selected;
   $('remove').disabled=!selected||!selectedCards()?.[selected.index];
 }
 function calculate(){
@@ -279,6 +280,12 @@ worker.onmessage=({data})=>{
 };
 worker.onerror=()=>{document.body.classList.remove('preset-awaiting');busy=false;render();$('message').textContent='计算模块加载失败，请重新运行 node scripts/serve-web.mjs 并刷新页面。';};
 $('calculate').onclick=calculate;
+$('random-card').onclick=()=>{
+  if(!selected)return;
+  const available=[...document.querySelectorAll('.deck-card:not(:disabled)')];
+  if(!available.length)return;
+  available[Math.floor(Math.random()*available.length)].click();
+};
 $('remove').onclick=()=>{if(selected)removeCard(selected.seat,selected.index);};
 $('reset').onclick=()=>{state={names:state.names,hands:state.hands.map(()=>[null,null]),board:[null,null,null,null,null]};selected=null;detailSeat=0;invalidate();render();};
 $('add-seat').onclick=()=>{if(state.hands.length>=9)return;state.names??=state.hands.map(()=>'');state.names.push('');state.hands.push([null,null]);selected={seat:state.hands.length-1,index:0};invalidate();render();};

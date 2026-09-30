@@ -121,3 +121,5 @@ input,textarea,[contenteditable="true"]{caret-color:auto}
 
 .detail-heading h3{color:var(--gold)}
 .detail-heading h3 .player-label{font-size:inherit;color:inherit}
+
+.deck-heading{flex-wrap:wrap;gap:8px}.deck-tools{display:flex;gap:8px;margin-left:auto;flex-shrink:0}
