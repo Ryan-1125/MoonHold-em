@@ -47,7 +47,7 @@ function cardFace(card){
 function cardHTML(card,cls='mini') {
   return `<span class="${cls}${'hd'.includes(card[1])?' red':''}" aria-label="${suitNames[card[1]]}${card[0]==='T'?'10':card[0]}">${cardFace(card)}</span>`;
 }
-function invalidate(){riverPreview=null;riverNavigation=null;saveTable();revision++;busy=false;result=null;$('result-content').innerHTML=empty;$('river-content').replaceChildren();$('river-content').hidden=true;$('result-status').textContent='牌面已更新';$('message').textContent='';}
+function invalidate(){document.body.classList.remove('preset-awaiting');riverPreview=null;riverNavigation=null;saveTable();revision++;busy=false;result=null;$('result-content').innerHTML=empty;$('river-content').replaceChildren();$('river-content').hidden=true;$('result-status').textContent='牌面已更新';$('message').textContent='';}
 let finishCardFlight=null;
 let finishDeckEntrance=null;
 function flyCard(card,from,seat,index,returning=false){
@@ -151,7 +151,17 @@ function calculate(){
   busy=true;render();$('message').textContent='正在枚举剩余公共牌…';
   worker.postMessage({id:revision,hands:state.hands.map(h=>h.join(' ')).join('|'),board:state.board.filter(Boolean).join(' ')});
 }
-function load(name){state=structuredClone(presets[name]);selected=null;detailSeat=0;invalidate();render();calculate();}
+function load(name){finishDeckEntrance?.();state=structuredClone(presets[name]);selected=null;detailSeat=0;invalidate();document.body.classList.add('preset-awaiting');render();calculate();}
+function revealPresetCards(){
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+  document.querySelectorAll('.card-slot.filled').forEach(card=>{
+    const face=card.innerHTML,index=Number(card.dataset.cardIndex),seat=Number(card.dataset.cardSeat);
+    card.classList.add('preset-flipping');
+    card.innerHTML='<span class="entrance-flipper"><span class="entrance-back"><span>M<span>♠</span></span></span><span class="entrance-front'+(card.classList.contains('red')?' red':'')+'">'+face+'</span></span>';
+    const animation=card.firstElementChild.animate([{transform:'rotateY(0deg)'},{transform:'rotateY(180deg)'}],{duration:480,delay:index*110+(seat===-1?160:seat*35),easing:'cubic-bezier(.4,0,.2,1)',fill:'both'});
+    animation.onfinish=()=>{card.innerHTML=face;card.classList.remove('preset-flipping');animation.cancel();};
+  });
+}
 function riverSection(r){
   if(riverPreview){
     return '<div class="river-preview"><span>正在查看所选河牌的最终结果</span><button type="button" id="back-to-turn">← 返回转牌分析</button></div>';
@@ -204,7 +214,7 @@ function returnToTurn(){
   render();
   calculate();
 }
-function showResults(){
+function showResults(reveal=false){
   const r=result,finished=state.board.filter(Boolean).length===5;
   const pct=n=>(n/r.total*100).toFixed(2);
   const title=r.leaders.length===state.hands.length?(finished?'所有玩家平局':'所有玩家当前牌力相同'):r.leaders.map(i=>seatLabel(i)).join('、')+' '+(finished?(r.leaders.length>1?'共同获胜':'获胜'):'当前领先');
@@ -212,6 +222,15 @@ function showResults(){
   const p=r.players[detailSeat];
   const reason=p.reason.replaceAll('玩家一','__LEFT__').replaceAll('玩家二',seatLabel(p.reference)+' ').replaceAll('__LEFT__',seatLabel(detailSeat)+' ');
   $('result-content').innerHTML=`<h3 class="result-title">${escapeHTML(title)}</h3><p class="subtext">${finished?'公共牌已全部发出，以下为最终摊牌结果。':'当前领先不代表最终获胜。下表精确枚举所有剩余公共牌。'}</p><div class="prob-head"><span>全桌 · 最终结果概率</span><small>${outcomeLabel(r.total)}</small></div><div class="prob-table-wrap"><table class="prob-table"><caption>点击任意玩家所在行，查看其牌力解释</caption><thead><tr><th>玩家</th><th>独赢</th><th>共同获胜</th><th>落败</th><th>权益</th></tr></thead><tbody>${rows}</tbody></table></div><div class="detail-heading"><h3>${nameHTML(detailSeat)} · 牌力详情</h3><span>${p.hand.category}</span></div><div class="mini-cards">${p.hand.best.map(c=>cardHTML(c,p.decisive.includes(c)?'mini decisive':'mini')).join('')}</div><p class="rank-note">${p.decisive.length?'金色边框为与对比玩家比较时的关键牌。':'与对比玩家的最佳五张等值，没有单独决定胜负的牌。'}</p><div class="explanation"><strong>${finished?'摊牌比较':'当前牌力比较'} · 对比${nameHTML(p.reference)}</strong><p>${escapeHTML(reason)}</p></div><p class="subtext">${r.leaders.includes(detailSeat)?'当前最强玩家与其最强对手比较，':'此玩家与当前最强玩家比较，'} 概率按全桌计算。</p>`;
+  if(reveal&&!matchMedia('(prefers-reduced-motion: reduce)').matches){
+    document.querySelectorAll('#result-content .mini-cards .mini').forEach((card,index)=>{
+      const face=card.innerHTML;
+      card.classList.add('result-flipping');
+      card.innerHTML='<span class="entrance-flipper"><span class="entrance-back"><span>M<span>♠</span></span></span><span class="entrance-front'+(card.classList.contains('red')?' red':'')+'">'+face+'</span></span>';
+      const animation=card.firstElementChild.animate([{transform:'rotateY(0deg)'},{transform:'rotateY(180deg)'}],{duration:480,delay:index*110,easing:'cubic-bezier(.4,0,.2,1)',fill:'both'});
+      animation.onfinish=()=>{card.innerHTML=face;card.classList.remove('result-flipping');animation.cancel();};
+    });
+  }
   const riversHTML=riverSection(r);
   riverLayoutObserver.disconnect();
   $('river-content').innerHTML=riversHTML;
@@ -232,11 +251,11 @@ function showResults(){
 worker.onmessage=({data})=>{
   if(data.id!==revision)return;
   busy=false;
-  if(data.error||data.result?.error){render();$('message').textContent=data.error||data.result.error;$('result-status').textContent='计算失败';return;}
-  result=data.result;detailSeat=result.leaders[0];render();showResults();$('message').textContent='计算完成。所有可能结局均已枚举。';$('result-status').textContent='';
+  if(data.error||data.result?.error){document.body.classList.remove('preset-awaiting');render();$('message').textContent=data.error||data.result.error;$('result-status').textContent='计算失败';return;}
+  const revealTable=document.body.classList.contains('preset-awaiting');document.body.classList.remove('preset-awaiting');result=data.result;detailSeat=result.leaders[0];render();if(revealTable)revealPresetCards();showResults(true);$('message').textContent='计算完成。所有可能结局均已枚举。';$('result-status').textContent='';
   if(riverNavigation){$(riverNavigation).scrollIntoView({block:'start'});riverNavigation=null;}
 };
-worker.onerror=()=>{busy=false;render();$('message').textContent='计算模块加载失败，请重新运行 node scripts/serve-web.mjs 并刷新页面。';};
+worker.onerror=()=>{document.body.classList.remove('preset-awaiting');busy=false;render();$('message').textContent='计算模块加载失败，请重新运行 node scripts/serve-web.mjs 并刷新页面。';};
 $('calculate').onclick=calculate;
 $('remove').onclick=()=>{if(selected)removeCard(selected.seat,selected.index);};
 $('reset').onclick=()=>{state={names:state.names,hands:state.hands.map(()=>[null,null]),board:[null,null,null,null,null]};selected=null;detailSeat=0;invalidate();render();};

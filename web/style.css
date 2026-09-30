@@ -111,3 +111,8 @@ input,textarea,[contenteditable="true"]{caret-color:auto}
 
 .restoring-deck .card-slot.filled:not(.entrance-revealed){background:#1a2e2580;border:1px dashed #6a8070;box-shadow:none}
 .restoring-deck .card-slot.filled:not(.entrance-revealed) .card-art{visibility:hidden}
+
+.mini-cards .mini.result-flipping{perspective:650px;background:transparent}
+
+.card-slot.preset-flipping{perspective:650px;background:transparent}
+.preset-awaiting .card-slot.filled .card-art{visibility:hidden}
