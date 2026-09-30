@@ -47,7 +47,7 @@ function cardFace(card){
 function cardHTML(card,cls='mini') {
   return `<span class="${cls}${'hd'.includes(card[1])?' red':''}" aria-label="${suitNames[card[1]]}${card[0]==='T'?'10':card[0]}">${cardFace(card)}</span>`;
 }
-function invalidate(){document.body.classList.remove('preset-awaiting');riverPreview=null;riverNavigation=null;saveTable();revision++;busy=false;result=null;$('result-content').innerHTML=empty;$('river-content').replaceChildren();$('river-content').hidden=true;$('result-status').textContent='牌面已更新';$('message').textContent='';}
+function invalidate(){saveTable();document.body.classList.remove('preset-awaiting');riverPreview=null;riverNavigation=null;revision++;busy=false;result=null;$('result-content').innerHTML=empty;$('river-content').replaceChildren();$('river-content').hidden=true;$('result-status').textContent='牌面已更新';$('message').textContent='';}
 let finishCardFlight=null;
 let finishDeckEntrance=null;
 function flyCard(card,from,seat,index,returning=false){
@@ -261,36 +261,28 @@ $('remove').onclick=()=>{if(selected)removeCard(selected.seat,selected.index);};
 $('reset').onclick=()=>{state={names:state.names,hands:state.hands.map(()=>[null,null]),board:[null,null,null,null,null]};selected=null;detailSeat=0;invalidate();render();};
 $('add-seat').onclick=()=>{if(state.hands.length>=9)return;state.names??=state.hands.map(()=>'');state.names.push('');state.hands.push([null,null]);selected={seat:state.hands.length-1,index:0};invalidate();render();};
 for(const b of document.querySelectorAll('[data-preset]'))b.onclick=()=>load(b.dataset.preset);
-const restoredTable=restoreTable();
-if(restoredTable){state=restoredTable;render();calculate();}else{state={hands:[[null,null],[null,null]],board:[null,null,null,null,null]};render();}
+const reloading=performance.getEntriesByType('navigation')[0]?.type==='reload';
+state=(reloading?restoreTable():null)||{hands:[[null,null],[null,null]],board:[null,null,null,null,null]};
+saveTable();render();if(reloading)calculate();
 const handGuide=$('hand-guide');
 $('open-guide').onclick=()=>handGuide.showModal();
 $('close-guide').onclick=()=>handGuide.close();
 handGuide.addEventListener('click',event=>{if(event.target!==handGuide)return;const r=handGuide.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)handGuide.close();});
 handGuide.addEventListener('close',()=>$('open-guide').focus());
 
-// Only card selections are persisted; derived probabilities are recalculated.
 function saveTable(){
-  try{
-    localStorage.setItem('moonholdem.table.v1',JSON.stringify({version:1,hands:state.hands,board:state.board,names:state.names}));
-  }catch{
-  }
+  try{sessionStorage.setItem('moonholdem.tab.v1',JSON.stringify(state));}catch{}
 }
 function restoreTable(){
   try{
-    const raw=localStorage.getItem('moonholdem.table.v1');
-    if(!raw)return null;
-    if(raw.length>5000)throw Error('Invalid saved table');
+    const raw=sessionStorage.getItem('moonholdem.tab.v1');if(!raw||raw.length>5000)return null;
     const saved=JSON.parse(raw);
-    if(saved.version!==1||!Array.isArray(saved.hands)||saved.hands.length<2||saved.hands.length>9||!Array.isArray(saved.board)||saved.board.length!==5||!saved.hands.every(h=>Array.isArray(h)&&h.length===2))throw Error('Invalid saved table');
+    if(!Array.isArray(saved.hands)||saved.hands.length<2||saved.hands.length>9||!saved.hands.every(h=>Array.isArray(h)&&h.length===2)||!Array.isArray(saved.board)||saved.board.length!==5)return null;
     const cards=[...saved.hands.flat(),...saved.board];
-    if(!cards.every(c=>c===null||(typeof c==='string'&&/^[2-9TJQKA][shdc]$/.test(c))))throw Error('Invalid saved cards');
-    const used=cards.filter(Boolean);
-    if(new Set(used).size!==used.length)throw Error('Duplicate saved cards');
+    if(!cards.every(c=>c===null||(typeof c==='string'&&/^[2-9TJQKA][shdc]$/.test(c))))return null;
+    const used=cards.filter(Boolean);if(new Set(used).size!==used.length)return null;
     return {hands:saved.hands,board:saved.board,names:saved.hands.map((_,i)=>cleanName(saved.names?.[i]))};
-  }catch{
-    return null;
-  }
+  }catch{return null;}
 }
 
 // Render a clean report from a frozen snapshot, independent of screen size.
