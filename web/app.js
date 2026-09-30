@@ -50,6 +50,12 @@ function cardHTML(card,cls='mini') {
 function invalidate(){saveTable();document.body.classList.remove('preset-awaiting');riverPreview=null;riverNavigation=null;revision++;busy=false;result=null;$('result-content').innerHTML=empty;$('river-content').replaceChildren();$('river-content').hidden=true;$('result-status').textContent='牌面已更新';$('message').textContent='';}
 let finishCardFlight=null;
 let finishDeckEntrance=null;
+let deckFacesStarted=false;
+const waitingResultFlips=new Set();
+function releaseResultFlips(skip=false){
+  for(const animation of waitingResultFlips){if(skip)animation.finish();else animation.play();}
+  waitingResultFlips.clear();
+}
 function flyCard(card,from,seat,index,returning=false){
   if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
   const destination=document.querySelector(returning?`[data-deck-card="${card}"]`:`[data-card-seat="${seat}"][data-card-index="${index}"]`);
@@ -228,7 +234,8 @@ function showResults(reveal=false){
       card.classList.add('result-flipping');
       card.innerHTML='<span class="entrance-flipper"><span class="entrance-back"><span>M<span>♠</span></span></span><span class="entrance-front'+(card.classList.contains('red')?' red':'')+'">'+face+'</span></span>';
       const animation=card.firstElementChild.animate([{transform:'rotateY(0deg)'},{transform:'rotateY(180deg)'}],{duration:480,delay:index*110,easing:'cubic-bezier(.4,0,.2,1)',fill:'both'});
-      animation.onfinish=()=>{card.innerHTML=face;card.classList.remove('result-flipping');animation.cancel();};
+      if(finishDeckEntrance&&!deckFacesStarted){animation.pause();animation.currentTime=0;waitingResultFlips.add(animation);}
+      animation.onfinish=()=>{waitingResultFlips.delete(animation);card.innerHTML=face;card.classList.remove('result-flipping');animation.cancel();};
     });
   }
   const riversHTML=riverSection(r);
@@ -417,7 +424,7 @@ function setupDeckEntrance(){
   deck.classList.add('deck-awaiting');
   document.body.classList.add('restoring-deck');
   let done=false,layer=null;const animations=[];
-  const cleanup=()=>{done=true;observer.disconnect();animations.forEach(a=>a.cancel());layer?.remove();deck.classList.remove('deck-awaiting');document.body.classList.remove('restoring-deck');deck.querySelectorAll('.deck-card').forEach(c=>c.style.visibility='');document.querySelectorAll('.entrance-revealed').forEach(c=>c.classList.remove('entrance-revealed'));document.removeEventListener('pointerdown',cleanup,true);document.removeEventListener('keydown',cleanup,true);window.removeEventListener('resize',cleanup);motion.removeEventListener('change',cleanup);if(finishDeckEntrance===cleanup)finishDeckEntrance=null;};
+  const cleanup=()=>{done=true;releaseResultFlips(true);observer.disconnect();animations.forEach(a=>a.cancel());layer?.remove();deck.classList.remove('deck-awaiting');document.body.classList.remove('restoring-deck');deck.querySelectorAll('.deck-card').forEach(c=>c.style.visibility='');document.querySelectorAll('.entrance-revealed').forEach(c=>c.classList.remove('entrance-revealed'));document.removeEventListener('pointerdown',cleanup,true);document.removeEventListener('keydown',cleanup,true);window.removeEventListener('resize',cleanup);motion.removeEventListener('change',cleanup);if(finishDeckEntrance===cleanup)finishDeckEntrance=null;};
   finishDeckEntrance=cleanup;
   const observer=new IntersectionObserver(async entries=>{
     if(done||!entries.some(e=>e.isIntersecting))return;
@@ -445,6 +452,7 @@ function setupDeckEntrance(){
         tile.style.zIndex='10';tile.style.transformOrigin='top left';
         const flight=tile.animate([{transform:'translate(0,0) scale(1)'},{transform:`translate(${to.left-from.left}px,${to.top-from.top}px) scale(${to.width/from.width},${to.height/from.height})`}],{duration:600,delay:flightOrder++*32,easing:'cubic-bezier(.22,.68,.12,1)',fill:'forwards'});
         animations.push(flight);await flight.finished.catch(()=>{});if(done)return;
+        if(!deckFacesStarted){deckFacesStarted=true;releaseResultFlips();}
         cards[i].style.visibility='visible';
       }
       const a=tile.firstElementChild.animate([{transform:'rotateY(0deg)'},{transform:'rotateY(180deg)'}],{duration:480,delay:destination?0:(i%13)*38+Math.floor(i/13)*65,easing:'cubic-bezier(.4,0,.2,1)',fill:'both'});
