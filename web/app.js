@@ -35,10 +35,10 @@ const riverLayoutObserver=new ResizeObserver(entries=>{
     target.classList.toggle('river-inline',requiredWidth<=target.clientWidth-24);
   }
 });
-const cleanName=value=>typeof value==='string'?Array.from(value.trim()).slice(0,12).join(''):'';
+const cleanName=value=>typeof value==='string'?Array.from(value.trim()).slice(0,10).join(''):'';
 const seatLabel=(i,table=state)=>cleanName(table.names?.[i])||`玩家 ${i+1}`;
 const escapeHTML=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const nameHTML=i=>escapeHTML(seatLabel(i));
+const nameHTML=i=>`<span class="player-label" data-player-label="${i}">${escapeHTML(seatLabel(i))}</span>`;
 const outcomeLabel=n=>n===1?'仅有一种结局':`共有 ${n.toLocaleString()} 种结局`;
 const selectedCards=()=>selected ? (selected.seat===-1?state.board:state.hands[selected.seat]) : null;
 function cardFace(card){
@@ -119,10 +119,15 @@ function render(selectionOnly=false){
   state.hands.forEach((cards,seat)=>{
     const panel=document.createElement('div');panel.className='seat'+(result?.leaders.includes(seat)?' leading':'');
     const header=document.createElement('div');header.className='seat-header';
-    const heading=document.createElement('input');heading.className='player-name';heading.type='text';heading.maxLength=24;heading.value=state.names?.[seat]||'';heading.placeholder=`玩家 ${seat+1}`;heading.setAttribute('aria-label',`玩家 ${seat+1}的名称`);heading.title='点击修改名称，最多 12 个字；留空恢复默认';
-    heading.onchange=()=>{state.names??=state.hands.map(()=>'');state.names[seat]=cleanName(heading.value);if(riverPreview)riverPreview.names=[...state.names];saveTable();render();if(result)showResults();};
-    heading.onkeydown=event=>{if(event.key==='Enter'){event.preventDefault();heading.blur();}if(event.key==='Escape'){heading.value=state.names?.[seat]||'';heading.blur();}};
-    header.append(heading);
+    const heading=document.createElement('input');heading.className='player-name';heading.type='text';heading.maxLength=20;heading.value=state.names?.[seat]||'';heading.placeholder=`玩家 ${seat+1}`;heading.setAttribute('aria-label',`玩家 ${seat+1}的名称`);
+    const editor=document.createElement('div');editor.className='name-editor';
+    const counter=document.createElement('small');counter.className='name-count';
+    const updateCount=()=>{counter.textContent=Array.from(heading.value).length+'/10';};updateCount();
+    heading.oninput=event=>{if(!event.isComposing)heading.value=Array.from(heading.value).slice(0,10).join('');updateCount();};
+    heading.oncompositionend=()=>{heading.value=Array.from(heading.value).slice(0,10).join('');updateCount();};
+    heading.onblur=()=>{state.names??=state.hands.map(()=>'');state.names[seat]=cleanName(heading.value);heading.value=state.names[seat];updateCount();if(riverPreview)riverPreview.names=[...state.names];saveTable();refreshNames();};
+    heading.onkeydown=event=>{if(event.isComposing||event.keyCode===229)return;if(event.key==='Enter'){event.preventDefault();heading.blur();}if(event.key==='Escape'){heading.value=state.names?.[seat]||'';heading.blur();}};
+    editor.append(heading,counter);header.append(editor);
     const remove=document.createElement('button');remove.className='remove-seat';remove.textContent='×';remove.title=`移除${seatLabel(seat)}`;remove.setAttribute('aria-label',remove.title);remove.disabled=state.hands.length<=2;remove.onclick=()=>removeSeat(seat);header.append(remove);
     panel.append(header);const slots=document.createElement('div');slots.className='slots';cards.forEach((card,index)=>slots.append(slot(card,seat,index)));panel.append(slots);
     const badge=document.createElement('p');badge.className='seat-state';badge.textContent=result?.leaders.includes(seat)?(state.board.filter(Boolean).length===5?'本局获胜':'当前领先'):'';panel.append(badge);table.append(panel);
@@ -148,7 +153,7 @@ function render(selectionOnly=false){
   const remaining=52-2*state.hands.length-count;
   const outcomes=count===3?remaining*(remaining-1)/2:count===4?remaining:1;
   $('calculate').disabled=!ready||busy;
-  $('calculate').innerHTML=busy?'正在精确计算…':'计算牌力与概率 <span aria-hidden="true">→</span>';
+  $('calculate').innerHTML=busy?'分析中…':'分析牌局 <span aria-hidden="true">→</span>';
   $('ready-note').textContent=ready?outcomeLabel(outcomes):'请选齐所有底牌和至少 3 张公共牌';
   $('remove').disabled=!selected||!selectedCards()?.[selected.index];
 }
@@ -194,7 +199,7 @@ function riverSection(r){
       const buttons=suited.map(card=>`<button type="button" class="river-card${'hd'.includes(suit)?' red':''}" data-river="${card}" aria-label="${suitNames[suit]}${card[0]==='T'?'10':card[0]}：${escapeHTML(winner)}，查看最终牌局">${cardFace(card)}</button>`).join('');
       return `<div class="river-suit-row" role="group" aria-label="${suitNames[suit]}"><span class="river-suit-label" aria-hidden="true">${suits[suit]}</span><div class="river-suit-cards">${buttons}</div></div>`;
     }).join('');
-    return `<details class="river-group" data-river-count="${g.cards.length}"><summary><span class="river-tag${different?' changed':''}">${tag}</span><span>${escapeHTML(winner)}</span><small>${g.cards.length} 张</small></summary><div class="river-cards">${cards}</div></details>`;
+    return `<details class="river-group" data-river-count="${g.cards.length}"><summary><span class="river-tag${different?' changed':''}">${tag}</span><span data-winner-seats="${g.winners.join(',')}">${escapeHTML(winner)}</span><small>${g.cards.length} 张</small></summary><div class="river-cards">${cards}</div></details>`;
   }).join('');
   return `<section class="river-section" aria-labelledby="river-title"><h3 id="river-title">哪张河牌能扭转局势？</h3><p class="subtext">剩余 ${r.rivers.length} 张牌，其中 ${changes} 张会改变结果。点击牌面添加河牌。</p>${groupsHTML}</section>`;
 }
@@ -220,6 +225,16 @@ function returnToTurn(){
   render();
   calculate();
 }
+function refreshNames(){
+  document.querySelectorAll('[data-player-label]').forEach(el=>{el.textContent=seatLabel(Number(el.dataset.playerLabel));});
+  document.querySelectorAll('.seat').forEach((panel,seat)=>{const remove=panel.querySelector('.remove-seat');remove.title='移除'+seatLabel(seat);remove.setAttribute('aria-label',remove.title);panel.querySelectorAll('.card-slot').forEach((card,index)=>{const c=state.hands[seat][index];card.setAttribute('aria-label',seatLabel(seat)+'第'+(index+1)+'张：'+(c?suitNames[c[1]]+c[0]:'未选择'));});});
+  if(selected)$('selection-label').textContent=`正在选择：${selected.seat===-1?'公共牌':seatLabel(selected.seat)} · 第 ${selected.index+1} 张`;
+  if(!result)return;
+  const finished=state.board.every(Boolean),r=result,p=r.players[detailSeat];
+  document.querySelector('.result-title').textContent=r.leaders.length===state.hands.length?(finished?'所有玩家平局':'所有玩家当前牌力相同'):r.leaders.map(i=>seatLabel(i)).join('、')+' '+(finished?(r.leaders.length>1?'共同获胜':'获胜'):'当前领先');
+  document.querySelector('.explanation p').textContent=p.reason.replace(/玩家一|玩家二/g,word=>seatLabel(word==='玩家一'?detailSeat:p.reference)+' ');
+  document.querySelectorAll('[data-winner-seats]').forEach(el=>{const ids=el.dataset.winnerSeats.split(',').map(Number);el.textContent=ids.map(i=>seatLabel(i)).join('、')+' '+(ids.length>1?'共同获胜':'获胜');});
+}
 function showResults(reveal=false){
   const r=result,finished=state.board.filter(Boolean).length===5;
   const pct=n=>(n/r.total*100).toFixed(2);
@@ -227,7 +242,7 @@ function showResults(reveal=false){
   const rows=r.players.map((p,i)=>`<tr data-result-seat="${i}" class="${i===detailSeat?'selected-result':''}"><th scope="row"><button class="result-seat" data-seat="${i}" aria-pressed="${i===detailSeat}">${nameHTML(i)}${r.leaders.includes(i)?'<span class="leader-star" aria-label="当前最强"> ★</span>':''}</button></th><td>${pct(p.wins)}%</td><td>${pct(p.ties)}%</td><td>${pct(p.losses)}%</td><td class="equity-cell">${(p.equity*100).toFixed(2)}%</td></tr>`).join('');
   const p=r.players[detailSeat];
   const reason=p.reason.replaceAll('玩家一','__LEFT__').replaceAll('玩家二',seatLabel(p.reference)+' ').replaceAll('__LEFT__',seatLabel(detailSeat)+' ');
-  $('result-content').innerHTML=`<h3 class="result-title">${escapeHTML(title)}</h3><p class="subtext">${finished?'公共牌已全部发出，以下为最终摊牌结果。':'当前领先不代表最终获胜。下表精确枚举所有剩余公共牌。'}</p><div class="prob-head"><span>全桌 · 最终结果概率</span><small>${outcomeLabel(r.total)}</small></div><div class="prob-table-wrap"><table class="prob-table"><caption>点击任意玩家所在行，查看其牌力解释</caption><thead><tr><th>玩家</th><th>独赢</th><th>共同获胜</th><th>落败</th><th>权益</th></tr></thead><tbody>${rows}</tbody></table></div><div class="detail-heading"><h3>${nameHTML(detailSeat)} · 牌力详情</h3><span>${p.hand.category}</span></div><div class="mini-cards">${p.hand.best.map(c=>cardHTML(c,p.decisive.includes(c)?'mini decisive':'mini')).join('')}</div><p class="rank-note">${p.decisive.length?'金色边框为与对比玩家比较时的关键牌。':'与对比玩家的最佳五张等值，没有单独决定胜负的牌。'}</p><div class="explanation"><strong>${finished?'摊牌比较':'当前牌力比较'} · 对比${nameHTML(p.reference)}</strong><p>${escapeHTML(reason)}</p></div><p class="subtext">${r.leaders.includes(detailSeat)?'当前最强玩家与其最强对手比较，':'此玩家与当前最强玩家比较，'} 概率按全桌计算。</p>`;
+  $('result-content').innerHTML=`<h3 class="result-title">${escapeHTML(title)}</h3><div class="prob-head"><span>全桌胜负概率</span><small>${outcomeLabel(r.total)}</small></div><details class="calculation-help"><summary>说明</summary><p>${finished?'公共牌已全部发出，以下为最终摊牌结果。':'当前领先不代表最终获胜。'}</p><p>点击玩家查看详情。</p><p>所有玩家底牌已知，枚举剩余公共牌。概率按全桌计算。共同获胜时，按人数平分该结局的权益。金色边框表示与对比玩家比较时的关键牌。</p></details><div class="prob-table-wrap"><table class="prob-table" aria-label="全桌胜负概率"><thead><tr><th>玩家</th><th>独赢</th><th>共同获胜</th><th>落败</th><th>权益</th></tr></thead><tbody>${rows}</tbody></table></div><div class="detail-heading"><h3>${nameHTML(detailSeat)} · 牌力详情</h3><span>${p.hand.category}</span></div><div class="mini-cards">${p.hand.best.map(c=>cardHTML(c,p.decisive.includes(c)?'mini decisive':'mini')).join('')}</div><div class="explanation"><strong>${finished?'摊牌比较':'当前牌力比较'} · 对比${nameHTML(p.reference)}</strong><p>${escapeHTML(reason)}</p></div>`;
   if(reveal&&!matchMedia('(prefers-reduced-motion: reduce)').matches){
     document.querySelectorAll('#result-content .mini-cards .mini').forEach((card,index)=>{
       const face=card.innerHTML;
@@ -259,7 +274,7 @@ worker.onmessage=({data})=>{
   if(data.id!==revision)return;
   busy=false;
   if(data.error||data.result?.error){document.body.classList.remove('preset-awaiting');render();$('message').textContent=data.error||data.result.error;$('result-status').textContent='计算失败';return;}
-  const revealTable=document.body.classList.contains('preset-awaiting');document.body.classList.remove('preset-awaiting');result=data.result;detailSeat=result.leaders[0];render();if(revealTable)revealPresetCards();showResults(true);$('message').textContent='计算完成。所有可能结局均已枚举。';$('result-status').textContent='';
+  const revealTable=document.body.classList.contains('preset-awaiting');document.body.classList.remove('preset-awaiting');result=data.result;detailSeat=result.leaders[0];render();if(revealTable)revealPresetCards();showResults(true);$('message').textContent='';$('result-status').textContent='';
   if(riverNavigation){$(riverNavigation).scrollIntoView({block:'start'});riverNavigation=null;}
 };
 worker.onerror=()=>{document.body.classList.remove('preset-awaiting');busy=false;render();$('message').textContent='计算模块加载失败，请重新运行 node scripts/serve-web.mjs 并刷新页面。';};
@@ -410,9 +425,7 @@ function setupScrollReveal(){
   },{threshold:0,rootMargin:'0px 0px -24px 0px'});
   targets.forEach(element=>{element.classList.add('reveal-pending');observer.observe(element);});
   // Finish before interactions so card-flight measurements use settled geometry.
-  const finishInteracted=event=>{for(const element of targets)if(element.contains(event.target))finish(element);};
-  document.addEventListener('pointerdown',finishInteracted,true);
-  document.addEventListener('focusin',finishInteracted,true);
+
   motion.addEventListener('change',()=>{if(motion.matches){targets.forEach(finish);observer.disconnect();}});
 }
 setupScrollReveal();
@@ -424,7 +437,7 @@ function setupDeckEntrance(){
   deck.classList.add('deck-awaiting');
   document.body.classList.add('restoring-deck');
   let done=false,layer=null;const animations=[];
-  const cleanup=()=>{done=true;releaseResultFlips(true);observer.disconnect();animations.forEach(a=>a.cancel());layer?.remove();deck.classList.remove('deck-awaiting');document.body.classList.remove('restoring-deck');deck.querySelectorAll('.deck-card').forEach(c=>c.style.visibility='');document.querySelectorAll('.entrance-revealed').forEach(c=>c.classList.remove('entrance-revealed'));document.removeEventListener('pointerdown',cleanup,true);document.removeEventListener('keydown',cleanup,true);window.removeEventListener('resize',cleanup);motion.removeEventListener('change',cleanup);if(finishDeckEntrance===cleanup)finishDeckEntrance=null;};
+  const cleanup=()=>{done=true;releaseResultFlips(true);observer.disconnect();animations.forEach(a=>a.cancel());layer?.remove();deck.classList.remove('deck-awaiting');document.body.classList.remove('restoring-deck');deck.querySelectorAll('.deck-card').forEach(c=>c.style.visibility='');document.querySelectorAll('.entrance-revealed').forEach(c=>c.classList.remove('entrance-revealed'));window.removeEventListener('resize',cleanup);motion.removeEventListener('change',cleanup);if(finishDeckEntrance===cleanup)finishDeckEntrance=null;};
   finishDeckEntrance=cleanup;
   const observer=new IntersectionObserver(async entries=>{
     if(done||!entries.some(e=>e.isIntersecting))return;
@@ -462,6 +475,18 @@ function setupDeckEntrance(){
     await Promise.all(flips);if(!done)cleanup();
   },{threshold:0.15});
   observer.observe(deck);
-  document.addEventListener('pointerdown',cleanup,true);document.addEventListener('keydown',cleanup,true);window.addEventListener('resize',cleanup);motion.addEventListener('change',cleanup);
+  window.addEventListener('resize',cleanup);motion.addEventListener('change',cleanup);
 }
 setupDeckEntrance();
+
+// Ignore actions until visual transitions settle; scrolling remains available.
+function animationIsPlaying(){
+  return Boolean(finishDeckEntrance||finishCardFlight)||document.getAnimations().some(a=>a.playState==='running'&&a.effect?.target?.closest('main,footer'));
+}
+function guardAnimationInput(event){
+  if(!animationIsPlaying())return;
+  if(event.type==='keydown'&&['ArrowUp','ArrowDown','PageUp','PageDown','Home','End'].includes(event.key))return;
+  if(event.type==='pointerdown'&&event.pointerType==='touch')return;
+  event.preventDefault();event.stopImmediatePropagation();
+}
+for(const type of ['pointerdown','click','dblclick','keydown','beforeinput'])document.addEventListener(type,guardAnimationInput,true);

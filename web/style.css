@@ -116,3 +116,8 @@ input,textarea,[contenteditable="true"]{caret-color:auto}
 
 .card-slot.preset-flipping{perspective:650px;background:transparent}
 .preset-awaiting .card-slot.filled .card-art{visibility:hidden}
+
+.name-editor{position:relative;min-width:0;flex:1}.name-count{display:none;position:absolute;right:5px;bottom:-12px;font-size:9px;color:var(--muted)}.name-editor:focus-within .name-count{display:block}.prob-table .player-label{display:inline-block;max-width:85px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle}.calculation-help{font-size:11px;color:var(--muted);margin:8px 0}.calculation-help summary{cursor:pointer}.calculation-help p{line-height:1.8}
+
+.detail-heading h3{color:var(--gold)}
+.detail-heading h3 .player-label{font-size:inherit;color:inherit}
