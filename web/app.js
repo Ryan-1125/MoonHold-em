@@ -49,6 +49,7 @@ function cardHTML(card,cls='mini') {
 }
 function invalidate(){saveTable();document.body.classList.remove('preset-awaiting');riverPreview=null;riverNavigation=null;revision++;busy=false;result=null;$('result-content').innerHTML=empty;$('river-content').replaceChildren();$('river-content').hidden=true;$('result-status').textContent='牌面已更新';$('message').textContent='';}
 let finishCardFlight=null;
+let batchAnimating=false;
 let finishDeckEntrance=null;
 let deckFacesStarted=false;
 const waitingResultFlips=new Set();
@@ -65,12 +66,12 @@ function flyCard(card,from,seat,index,returning=false){
   flying.className='flying-card'+('hd'.includes(card[1])?' red':'');
   flying.setAttribute('aria-hidden','true');flying.innerHTML=cardFace(card);
   Object.assign(flying.style,{left:from.left+'px',top:from.top+'px',width:from.width+'px',height:from.height+'px'});
-  document.body.append(flying);destination.style.visibility='hidden';
+  document.body.append(flying);if(returning)destination.classList.add('return-pending');else destination.style.visibility='hidden';
   const animation=flying.animate([
     {transform:'translate(0,0) scale(1)',boxShadow:'0 3px 8px #0003'},
     {transform:`translate(${to.left-from.left}px,${to.top-from.top}px) scale(${to.width/from.width},${to.height/from.height})`,boxShadow:'0 3px 4px #0d201c40'}
   ],{duration:480,easing:'cubic-bezier(.22,.68,.12,1)',fill:'forwards'});
-  const cleanup=()=>{destination.style.visibility='';flying.remove();animation.cancel();window.removeEventListener('scroll',cleanup,true);window.removeEventListener('resize',cleanup);if(finishCardFlight===cleanup)finishCardFlight=null;};
+  const cleanup=()=>{destination.style.visibility='';destination.classList.remove('return-pending');flying.remove();animation.cancel();window.removeEventListener('scroll',cleanup,true);window.removeEventListener('resize',cleanup);if(finishCardFlight===cleanup)finishCardFlight=null;};
   finishCardFlight=cleanup;animation.onfinish=cleanup;
   window.addEventListener('scroll',cleanup,true);window.addEventListener('resize',cleanup);
 }
@@ -155,6 +156,7 @@ function render(selectionOnly=false){
   $('calculate').disabled=!ready||busy;
   $('calculate').innerHTML=busy?'分析中…':'分析牌局 <span aria-hidden="true">→</span>';
   $('ready-note').textContent=ready?outcomeLabel(outcomes):'请选齐所有底牌和至少 3 张公共牌';
+  $('deal-all').disabled=state.hands.every(hand=>hand.every(Boolean))&&state.board.every(Boolean);
   $('random-card').disabled=!selected;
   $('remove').disabled=!selected||!selectedCards()?.[selected.index];
 }
@@ -287,7 +289,44 @@ $('random-card').onclick=()=>{
   available[Math.floor(Math.random()*available.length)].click();
 };
 $('remove').onclick=()=>{if(selected)removeCard(selected.seat,selected.index);};
-$('reset').onclick=()=>{state={names:state.names,hands:state.hands.map(()=>[null,null]),board:[null,null,null,null,null]};selected=null;detailSeat=0;invalidate();render();};
+async function animateBatch(moves,returning=false){
+  if(!moves.length||matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+  batchAnimating=true;
+  const objects=[];
+  try{
+    await Promise.all(moves.map(async(move,i)=>{
+      const destination=document.querySelector(returning?`[data-deck-card="${move.card}"]`:`[data-card-seat="${move.seat}"][data-card-index="${move.index}"]`);
+      if(!destination)return;
+      const to=destination.getBoundingClientRect(),from=move.from;
+      const flying=document.createElement('div');flying.className='flying-card'+('hd'.includes(move.card[1])?' red':'');flying.setAttribute('aria-hidden','true');flying.innerHTML=cardFace(move.card);
+      Object.assign(flying.style,{left:from.left+'px',top:from.top+'px',width:from.width+'px',height:from.height+'px'});
+      if(returning)destination.classList.add('return-pending');else destination.style.visibility='hidden';document.body.append(flying);
+      const animation=flying.animate([{transform:'translate(0,0) scale(1)'},{transform:`translate(${to.left-from.left}px,${to.top-from.top}px) scale(${to.width/from.width},${to.height/from.height})`}],{duration:480,delay:i*(returning?22:45),easing:'cubic-bezier(.22,.68,.12,1)',fill:'both'});
+      objects.push({flying,destination,animation});
+      await animation.finished.catch(()=>{});destination.style.visibility='';destination.classList.remove('return-pending');flying.remove();animation.cancel();
+    }));
+  }finally{objects.forEach(({flying,destination,animation})=>{destination.style.visibility='';destination.classList.remove('return-pending');flying.remove();animation.cancel();});batchAnimating=false;}
+}
+$('deal-all').onclick=()=>{
+  if(batchAnimating)return;
+  const available=[...document.querySelectorAll('.deck-card:not(.used-card)')].map(el=>el.dataset.deckCard),moves=[];
+  if(state.hands.every(hand=>hand.every(Boolean))){
+    state.board.forEach((card,index)=>{if(card)return;const chosen=available.splice(Math.floor(Math.random()*available.length),1)[0];const from=document.querySelector(`[data-deck-card="${chosen}"]`).getBoundingClientRect();state.board[index]=chosen;moves.push({card:chosen,seat:-1,index,from});});
+  }else for(let index=0;index<2;index++)state.hands.forEach((hand,seat)=>{
+    if(hand[index])return;
+    const choice=Math.floor(Math.random()*available.length),card=available.splice(choice,1)[0];
+    const from=document.querySelector(`[data-deck-card="${card}"]`).getBoundingClientRect();
+    hand[index]=card;moves.push({card,seat,index,from});
+  });
+  if(!moves.length)return;
+  selected=null;invalidate();render();void animateBatch(moves);
+};
+$('reset').onclick=()=>{
+  if(batchAnimating)return;
+  const moves=[];
+  [...state.hands,state.board].forEach((cards,group)=>cards.forEach((card,index)=>{if(!card)return;const seat=group===state.hands.length?-1:group;const from=document.querySelector(`[data-card-seat="${seat}"][data-card-index="${index}"]`).getBoundingClientRect();moves.push({card,seat,index,from});}));
+  state={names:state.names,hands:state.hands.map(()=>[null,null]),board:[null,null,null,null,null]};selected=null;detailSeat=0;invalidate();render();void animateBatch(moves,true);
+};
 $('add-seat').onclick=()=>{if(state.hands.length>=9)return;state.names??=state.hands.map(()=>'');state.names.push('');state.hands.push([null,null]);selected={seat:state.hands.length-1,index:0};invalidate();render();};
 for(const b of document.querySelectorAll('[data-preset]'))b.onclick=()=>load(b.dataset.preset);
 const reloading=performance.getEntriesByType('navigation')[0]?.type==='reload';
@@ -488,7 +527,7 @@ setupDeckEntrance();
 
 // Ignore actions until visual transitions settle; scrolling remains available.
 function animationIsPlaying(){
-  return Boolean(finishDeckEntrance||finishCardFlight)||document.getAnimations().some(a=>a.playState==='running'&&a.effect?.target?.closest('main,footer'));
+  return Boolean(batchAnimating||finishDeckEntrance||finishCardFlight)||document.getAnimations().some(a=>a.playState==='running'&&a.effect?.target?.closest('main,footer'));
 }
 function guardAnimationInput(event){
   if(!animationIsPlaying())return;

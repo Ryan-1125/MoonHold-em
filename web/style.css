@@ -123,3 +123,11 @@ input,textarea,[contenteditable="true"]{caret-color:auto}
 .detail-heading h3 .player-label{font-size:inherit;color:inherit}
 
 .deck-heading{flex-wrap:wrap;gap:8px}.deck-tools{display:flex;gap:8px;margin-left:auto;flex-shrink:0}
+
+.table-actions{display:flex;align-items:center;gap:14px;flex-wrap:wrap;justify-content:flex-end}.table-actions button{white-space:nowrap}.table-actions button:disabled{opacity:.4;color:var(--muted);cursor:default}
+
+.table-actions #deal-all{display:inline-flex;align-items:center;gap:5px}.deck-card.return-pending{opacity:.2}
+.table-actions #reset{border-left:1px solid var(--line);padding-left:14px}
+.deck-tools #random-card{height:31px;min-width:82px;padding:6px 9px;gap:5px}
+.deck-tools #random-card>svg{display:none}
+.deck-tools #random-card::before{content:"♧";font:13px Georgia,serif;line-height:1;color:currentColor}
