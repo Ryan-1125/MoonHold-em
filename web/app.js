@@ -333,10 +333,52 @@ const reloading=performance.getEntriesByType('navigation')[0]?.type==='reload';
 state=(reloading?restoreTable():null)||{hands:[[null,null],[null,null]],board:[null,null,null,null,null]};
 saveTable();render();if(reloading)calculate();
 const handGuide=$('hand-guide');
-$('open-guide').onclick=()=>handGuide.showModal();
+let guideIntroShown=false,guideObserver=null;
+const guideAnimations=new Set();
+function finishGuideReveal(){
+  guideObserver?.disconnect();guideObserver=null;
+  for(const animation of guideAnimations)animation.cancel();
+  guideAnimations.clear();
+  handGuide.querySelectorAll('.guide-flip-shell').forEach(shell=>shell.style.transform='rotateY(180deg)');
+}
+function openHandGuide(){
+  handGuide.showModal();
+  if(guideIntroShown)return;
+  guideIntroShown=true;
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+  const scroll=handGuide.querySelector('.guide-scroll');
+  const rows=[...handGuide.querySelectorAll('.guide-row')];
+  // Prepare every row as a back before observing, including off-screen rows.
+  for(const card of handGuide.querySelectorAll('.guide-card')){
+    const style=getComputedStyle(card);
+    card.style.setProperty('--guide-face-color',style.backgroundColor);
+    card.style.setProperty('--guide-edge-color',style.borderTopColor);
+    card.classList.add('guide-flip-card');
+    const face=card.querySelector('.card-art');
+    const shell=document.createElement('span');shell.className='guide-flip-shell';
+    const back=document.createElement('span');back.className='guide-flip-back entrance-back';back.setAttribute('aria-hidden','true');back.innerHTML='<span>M<span>♠</span></span>';
+    const front=document.createElement('span');front.className='guide-flip-front';front.append(face);
+    shell.append(back,front);card.append(shell);
+  }
+  guideObserver=new IntersectionObserver(entries=>{
+    entries.filter(entry=>entry.isIntersecting&&entry.intersectionRatio>=.45)
+      .sort((a,b)=>a.boundingClientRect.top-b.boundingClientRect.top)
+      .forEach((entry,rowIndex)=>{
+        guideObserver?.unobserve(entry.target);
+        entry.target.dataset.guideRevealed='true';
+        entry.target.querySelectorAll('.guide-flip-shell').forEach((shell,index)=>{
+          const animation=shell.animate([{transform:'rotateY(0deg)'},{transform:'rotateY(180deg)'}],{duration:480,delay:rowIndex*90+index*75,easing:'cubic-bezier(.4,0,.2,1)',fill:'both'});
+          guideAnimations.add(animation);
+          animation.onfinish=()=>{shell.style.transform='rotateY(180deg)';guideAnimations.delete(animation);animation.cancel();};
+        });
+      });
+  },{root:scroll,threshold:.45});
+  rows.forEach(row=>guideObserver.observe(row));
+}
+$('open-guide').onclick=openHandGuide;
 $('close-guide').onclick=()=>handGuide.close();
 handGuide.addEventListener('click',event=>{if(event.target!==handGuide)return;const r=handGuide.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)handGuide.close();});
-handGuide.addEventListener('close',()=>$('open-guide').focus());
+handGuide.addEventListener('close',()=>{finishGuideReveal();$('open-guide').focus();});
 
 function saveTable(){
   try{sessionStorage.setItem('moonholdem.tab.v1',JSON.stringify(state));}catch{}
@@ -530,6 +572,7 @@ function animationIsPlaying(){
   return Boolean(batchAnimating||finishDeckEntrance||finishCardFlight)||document.getAnimations().some(a=>a.playState==='running'&&a.effect?.target?.closest('main,footer'));
 }
 function guardAnimationInput(event){
+  if(event.target.closest?.('#open-guide,#hand-guide'))return;
   if(!animationIsPlaying())return;
   if(event.type==='keydown'&&['ArrowUp','ArrowDown','PageUp','PageDown','Home','End'].includes(event.key))return;
   if(event.type==='pointerdown'&&event.pointerType==='touch')return;

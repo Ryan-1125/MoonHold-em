@@ -131,3 +131,8 @@ input,textarea,[contenteditable="true"]{caret-color:auto}
 .deck-tools #random-card{height:31px;min-width:82px;padding:6px 9px;gap:5px}
 .deck-tools #random-card>svg{display:none}
 .deck-tools #random-card::before{content:"♧";font:13px Georgia,serif;line-height:1;color:currentColor}
+.guide-card.guide-flip-card{perspective:650px;background:transparent;border-color:transparent;box-shadow:none}
+.guide-flip-shell{position:absolute;inset:-1px;display:block;transform-style:preserve-3d;border-radius:inherit}
+.guide-flip-back.entrance-back,.guide-flip-front{position:absolute;inset:0;display:block;border:1px solid var(--guide-edge-color);border-radius:inherit;overflow:hidden;backface-visibility:hidden;-webkit-backface-visibility:hidden;box-shadow:0 2px 4px #0003}
+.guide-flip-back.entrance-back{display:grid;place-items:center;box-shadow:inset 0 0 0 3px #1b392e,0 2px 4px #0003}
+.guide-flip-front{background:var(--guide-face-color);transform:rotateY(180deg)}
