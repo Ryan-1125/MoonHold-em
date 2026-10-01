@@ -136,3 +136,8 @@ input,textarea,[contenteditable="true"]{caret-color:auto}
 .guide-flip-back.entrance-back,.guide-flip-front{position:absolute;inset:0;display:block;border:1px solid var(--guide-edge-color);border-radius:inherit;overflow:hidden;backface-visibility:hidden;-webkit-backface-visibility:hidden;box-shadow:0 2px 4px #0003}
 .guide-flip-back.entrance-back{display:grid;place-items:center;box-shadow:inset 0 0 0 3px #1b392e,0 2px 4px #0003}
 .guide-flip-front{background:var(--guide-face-color);transform:rotateY(180deg)}
+.section-title h2>span{font-size:14px}
+/* Touch controls should not retain the browser's tap or text-selection highlight. */
+button,a,summary,[data-result-seat],.card-art{-webkit-tap-highlight-color:transparent}
+button,a,summary,[data-result-seat],.card-art{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.player-name{-webkit-user-select:text;user-select:text;-webkit-touch-callout:default}

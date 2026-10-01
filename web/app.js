@@ -330,6 +330,12 @@ $('reset').onclick=()=>{
 $('add-seat').onclick=()=>{if(state.hands.length>=9)return;state.names??=state.hands.map(()=>'');state.names.push('');state.hands.push([null,null]);selected={seat:state.hands.length-1,index:0};invalidate();render();};
 for(const b of document.querySelectorAll('[data-preset]'))b.onclick=()=>load(b.dataset.preset);
 const reloading=performance.getEntriesByType('navigation')[0]?.type==='reload';
+document.querySelector('.brand').addEventListener('click',event=>{
+  if(event.ctrlKey||event.metaKey||event.shiftKey||event.altKey)return;
+  event.preventDefault();
+  saveTable();
+  window.location.reload();
+});
 state=(reloading?restoreTable():null)||{hands:[[null,null],[null,null]],board:[null,null,null,null,null]};
 saveTable();render();if(reloading)calculate();
 const handGuide=$('hand-guide');
@@ -527,8 +533,10 @@ function setupDeckEntrance(){
   let done=false,layer=null;const animations=[];
   const cleanup=()=>{done=true;releaseResultFlips(true);observer.disconnect();animations.forEach(a=>a.cancel());layer?.remove();deck.classList.remove('deck-awaiting');document.body.classList.remove('restoring-deck');deck.querySelectorAll('.deck-card').forEach(c=>c.style.visibility='');document.querySelectorAll('.entrance-revealed').forEach(c=>c.classList.remove('entrance-revealed'));window.removeEventListener('resize',cleanup);motion.removeEventListener('change',cleanup);if(finishDeckEntrance===cleanup)finishDeckEntrance=null;};
   finishDeckEntrance=cleanup;
-  const observer=new IntersectionObserver(async entries=>{
-    if(done||!entries.some(e=>e.isIntersecting))return;
+  let started=false;
+  const startEntrance=async()=>{
+    if(done||started)return;
+    started=true;
     observer.disconnect();
     const bounds=deck.getBoundingClientRect(),cards=[...deck.querySelectorAll('.deck-card')];
     layer=document.createElement('div');layer.className='deck-entrance';layer.setAttribute('aria-hidden','true');deck.append(layer);
@@ -561,8 +569,12 @@ function setupDeckEntrance(){
       if(destination){document.querySelector(`[data-card-seat="${destination.seat}"][data-card-index="${destination.index}"]`)?.classList.add('entrance-revealed');tile.style.visibility='hidden';}
     });
     await Promise.all(flips);if(!done)cleanup();
+  };
+  const observer=new IntersectionObserver(entries=>{
+    if(entries.some(e=>e.isIntersecting))void startEntrance();
   },{threshold:0.15});
-  observer.observe(deck);
+  if(reloading)requestAnimationFrame(()=>void startEntrance());
+  else observer.observe(deck);
   window.addEventListener('resize',cleanup);motion.addEventListener('change',cleanup);
 }
 setupDeckEntrance();
@@ -572,7 +584,7 @@ function animationIsPlaying(){
   return Boolean(batchAnimating||finishDeckEntrance||finishCardFlight)||document.getAnimations().some(a=>a.playState==='running'&&a.effect?.target?.closest('main,footer'));
 }
 function guardAnimationInput(event){
-  if(event.target.closest?.('#open-guide,#hand-guide'))return;
+  if(event.target.closest?.('.brand,#open-guide,#hand-guide'))return;
   if(!animationIsPlaying())return;
   if(event.type==='keydown'&&['ArrowUp','ArrowDown','PageUp','PageDown','Home','End'].includes(event.key))return;
   if(event.type==='pointerdown'&&event.pointerType==='touch')return;
