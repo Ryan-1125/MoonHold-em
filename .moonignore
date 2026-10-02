@@ -1,0 +1,24 @@
+# Publish the reusable MoonBit library and web example without Android tooling.
+_build/
+target/
+.mooncakes/
+.tools/
+.local/
+node_modules/
+dist-app/
+artifacts/
+web/engine.mjs
+android/
+mobile/
+capacitor.config.json
+package.json
+package-lock.json
+scripts/build-app.mjs
+scripts/build-icons.mjs
+scripts/build-android.mjs
+scripts/cap.mjs
+scripts/test-app.mjs
+docs/APP-PROGRESS.md
+申报书.md
+*.keystore
+*.jks

@@ -1,4 +1,5 @@
 const $ = id => document.getElementById(id);
+const nativeApp=Boolean(window.PokerLab?.native);
 const suits = {s:'♠',h:'♥',d:'♦',c:'♣'};
 const suitNames = {s:'黑桃',h:'红桃',d:'方块',c:'梅花'};
 const presets = {
@@ -336,8 +337,8 @@ document.querySelector('.brand').addEventListener('click',event=>{
   saveTable();
   window.location.reload();
 });
-state=(reloading?restoreTable():null)||{hands:[[null,null],[null,null]],board:[null,null,null,null,null]};
-saveTable();render();if(reloading)calculate();
+state=((reloading||nativeApp)?restoreTable():null)||{hands:[[null,null],[null,null]],board:[null,null,null,null,null]};
+saveTable();render();if(reloading||(nativeApp&&state.hands.every(hand=>hand.every(Boolean))&&state.board.filter(Boolean).length>=3))calculate();
 const handGuide=$('hand-guide');
 let guideIntroShown=false,guideObserver=null;
 const guideAnimations=new Set();
@@ -387,11 +388,11 @@ handGuide.addEventListener('click',event=>{if(event.target!==handGuide)return;co
 handGuide.addEventListener('close',()=>{finishGuideReveal();$('open-guide').focus();});
 
 function saveTable(){
-  try{sessionStorage.setItem('moonholdem.tab.v1',JSON.stringify(state));}catch{}
+  try{(nativeApp?localStorage:sessionStorage).setItem(nativeApp?'pokerlab.table.v1':'moonholdem.tab.v1',JSON.stringify(state));}catch{}
 }
 function restoreTable(){
   try{
-    const raw=sessionStorage.getItem('moonholdem.tab.v1');if(!raw||raw.length>5000)return null;
+    const raw=(nativeApp?localStorage:sessionStorage).getItem(nativeApp?'pokerlab.table.v1':'moonholdem.tab.v1');if(!raw||raw.length>5000)return null;
     const saved=JSON.parse(raw);
     if(!Array.isArray(saved.hands)||saved.hands.length<2||saved.hands.length>9||!saved.hands.every(h=>Array.isArray(h)&&h.length===2)||!Array.isArray(saved.board)||saved.board.length!==5)return null;
     const cards=[...saved.hands.flat(),...saved.board];
@@ -423,7 +424,7 @@ function tableImage(snapshot,analysis,date){
     ctx.font=`${w*20/50}px Georgia,serif`;
     ctx.fillText(suits[value[1]],x+w/2,y+w*51/50);
   };
-  text("MoonHold'em",48,67,34,gold,650);
+  text(nativeApp?'牌局实验室':"MoonHold'em",48,67,34,gold,650);
   text('牌局快照',952,65,21,ink,500,'right');
   text(date.toLocaleString('zh-CN',{hour12:false}),952,94,13,muted,400,'right');
   const boardCount=snapshot.board.filter(Boolean).length;
@@ -455,7 +456,7 @@ function tableImage(snapshot,analysis,date){
   text(analysis?'所有底牌已知；共同获胜时按人数平分权益。不含下注与边池。':'这是尚未计算的牌面快照；未展示概率或胜负结论。',48,bottom+30,14,muted);
   text(analysis&&boardCount<5?'当前领先不代表最终获胜。概率来自全部剩余公共牌的精确枚举。':'牌面与结果取自下载时的牌局；百分比显示值经四舍五入。',48,bottom+56,14,muted);
   ctx.strokeStyle='#30423b';ctx.beginPath();ctx.moveTo(48,bottom+83);ctx.lineTo(952,bottom+83);ctx.stroke();
-  text("MoonHold'em · MoonBit",48,bottom+119,14,muted);
+  text(nativeApp?'牌局实验室 · MoonBit':"MoonHold'em · MoonBit",48,bottom+119,14,muted);
   text('Ryan',952,bottom+119,14,muted,400,'right');
   return canvas;
 }
@@ -467,9 +468,23 @@ previewDialog.addEventListener('close',()=>{
   $('download-image').focus();
 });
 $('cancel-download').onclick=()=>previewDialog.close();
-$('confirm-download').onclick=()=>{
+$('confirm-download').onclick=async()=>{
   if(!pendingImage)return;
   const {url,filename}=pendingImage;
+  if(nativeApp){
+    const button=$('confirm-download');button.disabled=true;
+    $('preview-filename').textContent=filename;
+    try{
+      const saved=await window.PokerLab.saveImage(url,filename);
+      if(saved.cancelled)return;
+      previewDialog.close();
+      $('download-status').textContent=`牌局已保存为：\n${saved.filename||filename}`;
+    }catch{
+      $('preview-filename').textContent=`保存失败，请重试。\n${filename}`;
+      $('download-status').textContent='保存失败，请重试。';
+    }finally{button.disabled=false;}
+    return;
+  }
   const link=document.createElement('a');link.href=url;link.download=filename;
   document.body.append(link);link.click();link.remove();
   pendingImage=null;
@@ -489,7 +504,7 @@ $('download-image').onclick=async()=>{
     const blob=await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(Error('PNG encoding failed')),'image/png'));
     const day=[date.getFullYear(),String(date.getMonth()+1).padStart(2,'0'),String(date.getDate()).padStart(2,'0')].join('.');
     const time=[date.getHours(),date.getMinutes(),date.getSeconds()].map(v=>String(v).padStart(2,'0')).join('');
-    pendingImage={url:URL.createObjectURL(blob),filename:`MoonHold'em-${snapshot.hands.length}人牌局-${day}-${time}.png`};
+    pendingImage={url:URL.createObjectURL(blob),filename:`${nativeApp?'牌局实验室':"MoonHold'em"}-${snapshot.hands.length}人牌局-${day}-${time}.png`};
     $('preview-image').src=pendingImage.url;
     $('preview-filename').textContent=pendingImage.filename;
     previewDialog.showModal();

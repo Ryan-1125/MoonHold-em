@@ -8,6 +8,8 @@ MoonHold'em 是一个使用 MoonBit 编写的德州扑克规则与牌力分析�
 
 项目名称在代码中使用 `MoonHoldem`，网页界面使用 `MoonHold'em`。
 
+Android 应用名为「牌局实验室」，复用同一计算核心与界面，支持离线使用。安装与构建见 [Android 文档](./docs/ANDROID.md)。
+
 ## 功能
 
 - 解析和校验标准扑克牌记法，例如 `As Kh Td 2c`。

@@ -1,0 +1,25 @@
+{
+  "name": "moonholdem-app",
+  "version": "0.1.1",
+  "private": true,
+  "scripts": {
+    "build:web": "node scripts/build-web.mjs",
+    "test:web": "node scripts/test-web.mjs",
+    "test:app": "node scripts/test-app.mjs",
+    "build:app": "node scripts/build-app.mjs",
+    "android:sync": "npm run build:app && node scripts/cap.mjs sync android",
+    "android:open": "node scripts/cap.mjs open android",
+    "android:apk": "npm run android:sync && node scripts/build-android.mjs"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.5.2",
+    "@capacitor/app": "8.1.1",
+    "@capacitor/core": "8.5.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.5.2",
+    "esbuild": "0.28.2",
+    "playwright": "1.63.0",
+    "sharp": "0.35.5"
+  }
+}

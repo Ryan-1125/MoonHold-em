@@ -4,3 +4,11 @@ target/
 .DS_Store
 
 web/engine.mjs
+node_modules/
+.tools/
+dist-app/
+artifacts/
+.local/
+*.keystore
+*.jks
+android/local.properties

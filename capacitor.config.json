@@ -1,0 +1,8 @@
+{
+  "appId": "io.github.ryan1125.pokerlab",
+  "appName": "牌局实验室",
+  "webDir": "dist-app",
+  "backgroundColor": "#101b19",
+  "android": { "backgroundColor": "#101b19", "allowMixedContent": false },
+  "plugins": { "SystemBars": { "insetsHandling": "native", "style": "DARK" } }
+}
