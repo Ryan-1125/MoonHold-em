@@ -42,9 +42,26 @@ const escapeHTML=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&
 const nameHTML=i=>`<span class="player-label" data-player-label="${i}">${escapeHTML(seatLabel(i))}</span>`;
 const outcomeLabel=n=>n===1?'仅有 1 种结局':`共有 ${n.toLocaleString()} 种结局`;
 const selectedCards=()=>selected ? (selected.seat===-1?state.board:state.hands[selected.seat]) : null;
-function cardFace(card){
-  return `<svg class="card-art" viewBox="0 0 50 70" aria-hidden="true" focusable="false"><text x="25" y="29" font-size="22" font-weight="bold">${card[0]==='T'?'10':card[0]}</text><text x="25" y="51" font-size="20">${suits[card[1]]}</text></svg>`;
+const rankMeasure=document.createElement('canvas').getContext('2d');
+rankMeasure.font='bold 22px Georgia,serif';
+const rankGeometry=new Map();
+function rankLayout(rank){
+  if(!rankGeometry.has(rank)){
+    const m=rankMeasure.measureText(rank);
+    const scale=16/(m.actualBoundingBoxAscent+m.actualBoundingBoxDescent||16);
+    rankGeometry.set(rank,{scale,baseline:29-m.actualBoundingBoxDescent*scale});
+  }
+  return rankGeometry.get(rank);
 }
+function cardFace(card){
+  const rank=card[0]==='T'?'10':card[0],{scale,baseline}=rankLayout(rank);
+  return `<svg class="card-art" viewBox="0 0 50 70" aria-hidden="true" focusable="false"><text x="0" y="0" transform="translate(25 ${baseline}) scale(1 ${scale})" font-size="22" font-weight="bold">${rank}</text><text x="25" y="51" font-size="20">${suits[card[1]]}</text></svg>`;
+}
+document.querySelectorAll('.guide-card .card-art text:first-child').forEach(node=>{
+  const {scale,baseline}=rankLayout(node.textContent);
+  node.setAttribute('x','0');node.setAttribute('y','0');
+  node.setAttribute('transform',`translate(25 ${baseline}) scale(1 ${scale})`);
+});
 function cardHTML(card,cls='mini') {
   return `<span class="${cls}${'hd'.includes(card[1])?' red':''}" aria-label="${suitNames[card[1]]}${card[0]==='T'?'10':card[0]}">${cardFace(card)}</span>`;
 }
@@ -172,7 +189,7 @@ function revealPresetCards(){
   document.querySelectorAll('.card-slot.filled').forEach(card=>{
     const face=card.innerHTML,index=Number(card.dataset.cardIndex),seat=Number(card.dataset.cardSeat);
     card.classList.add('preset-flipping');
-    card.innerHTML='<span class="entrance-flipper"><span class="entrance-back"><span>M<span>♠</span></span></span><span class="entrance-front'+(card.classList.contains('red')?' red':'')+'">'+face+'</span></span>';
+    card.innerHTML='<span class="entrance-flipper"><span class="entrance-back"></span><span class="entrance-front'+(card.classList.contains('red')?' red':'')+'">'+face+'</span></span>';
     const animation=card.firstElementChild.animate([{transform:'rotateY(0deg)'},{transform:'rotateY(180deg)'}],{duration:480,delay:index*110+(seat===-1?160:seat*35),easing:'cubic-bezier(.4,0,.2,1)',fill:'both'});
     animation.onfinish=()=>{card.innerHTML=face;card.classList.remove('preset-flipping');animation.cancel();};
   });
@@ -251,7 +268,7 @@ function showResults(reveal=false){
     document.querySelectorAll('#result-content .mini-cards .mini').forEach((card,index)=>{
       const face=card.innerHTML;
       card.classList.add('result-flipping');
-      card.innerHTML='<span class="entrance-flipper"><span class="entrance-back"><span>M<span>♠</span></span></span><span class="entrance-front'+(card.classList.contains('red')?' red':'')+'">'+face+'</span></span>';
+      card.innerHTML='<span class="entrance-flipper"><span class="entrance-back"></span><span class="entrance-front'+(card.classList.contains('red')?' red':'')+'">'+face+'</span></span>';
       const animation=card.firstElementChild.animate([{transform:'rotateY(0deg)'},{transform:'rotateY(180deg)'}],{duration:480,delay:index*110,easing:'cubic-bezier(.4,0,.2,1)',fill:'both'});
       if(finishDeckEntrance&&!deckFacesStarted){animation.pause();animation.currentTime=0;waitingResultFlips.add(animation);}
       animation.onfinish=()=>{waitingResultFlips.delete(animation);card.innerHTML=face;card.classList.remove('result-flipping');animation.cancel();};
@@ -363,7 +380,7 @@ function openHandGuide(){
     card.classList.add('guide-flip-card');
     const face=card.querySelector('.card-art');
     const shell=document.createElement('span');shell.className='guide-flip-shell';
-    const back=document.createElement('span');back.className='guide-flip-back entrance-back';back.setAttribute('aria-hidden','true');back.innerHTML='<span>M<span>♠</span></span>';
+    const back=document.createElement('span');back.className='guide-flip-back entrance-back';back.setAttribute('aria-hidden','true');back.innerHTML='';
     const front=document.createElement('span');front.className='guide-flip-front';front.append(face);
     shell.append(back,front);card.append(shell);
   }
@@ -411,7 +428,8 @@ function tableImage(snapshot,analysis,date){
   const ctx=canvas.getContext('2d');if(!ctx)throw Error('Canvas unavailable');ctx.scale(exportScale,exportScale);
   const ink='#f2f0e6',muted='#a9b7ab',gold='#e1bd78';
   ctx.fillStyle='#101b19';ctx.fillRect(0,0,width,height);
-  const text=(value,x,y,size=18,color=ink,weight=400,align='left')=>{ctx.font=`${weight} ${size}px "Microsoft YaHei", "Noto Sans CJK SC", sans-serif`;ctx.fillStyle=color;ctx.textAlign=align;ctx.fillText(value,x,y);};
+  const uiFont=getComputedStyle(document.body).fontFamily;
+  const text=(value,x,y,size=18,color=ink,weight=400,align='left')=>{ctx.font=`${weight} ${size}px ${uiFont}`;ctx.fillStyle=color;ctx.textAlign=align;ctx.fillText(value,x,y);};
   const box=(x,y,w,h,fill,stroke)=>{ctx.beginPath();ctx.roundRect(x,y,w,h,10);ctx.fillStyle=fill;ctx.fill();if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=1;ctx.stroke();}};
   const card=(value,x,y,w=53)=>{
     const h=w*7/5;
@@ -420,11 +438,13 @@ function tableImage(snapshot,analysis,date){
     const color='hd'.includes(value[1])?'#b74d42':'#24352d';
     ctx.fillStyle=color;ctx.textAlign='center';
     ctx.font=`bold ${w*22/50}px Georgia,serif`;
-    ctx.fillText(value[0]==='T'?'10':value[0],x+w/2,y+w*29/50);
+    const rank=value[0]==='T'?'10':value[0],{scale,baseline}=rankLayout(rank);
+    ctx.save();ctx.translate(x+w/2,y+w*baseline/50);ctx.scale(1,scale);
+    ctx.fillText(rank,0,0);ctx.restore();
     ctx.font=`${w*20/50}px Georgia,serif`;
     ctx.fillText(suits[value[1]],x+w/2,y+w*51/50);
   };
-  text(nativeApp?'牌局实验室':"MoonHold'em",48,67,34,gold,650);
+  text(nativeApp?'牌局实验室':'Poker Lab',48,67,34,gold,650);
   text('牌局快照',952,65,21,ink,500,'right');
   text(date.toLocaleString('zh-CN',{hour12:false}),952,94,13,muted,400,'right');
   const boardCount=snapshot.board.filter(Boolean).length;
@@ -441,7 +461,7 @@ function tableImage(snapshot,analysis,date){
   snapshot.hands.forEach((hand,i)=>{
     const y=rowsTop+i*rowHeight,p=analysis?.players[i],leading=analysis?.leaders.includes(i);
     box(48,y,904,rowHeight-10,leading?'#29392d':'#172522',leading?'#8e8055':'#30423b');
-    const label=seatLabel(i,snapshot);ctx.font='600 18px "Microsoft YaHei", sans-serif';
+    const label=seatLabel(i,snapshot);ctx.font=`600 18px ${uiFont}`;
     const nameSize=Math.min(18,90/Math.max(1,ctx.measureText(label).width)*18);
     text(label,68,y+30,nameSize,leading?gold:ink,600);
     if(leading)text(boardCount===5?'获胜':'当前领先',68,y+60,12,gold);
@@ -456,7 +476,7 @@ function tableImage(snapshot,analysis,date){
   text(analysis?'所有底牌已知；共同获胜时按人数平分权益。不含下注与边池。':'这是尚未计算的牌面快照；未展示概率或胜负结论。',48,bottom+30,14,muted);
   text(analysis&&boardCount<5?'当前领先不代表最终获胜。概率来自全部剩余公共牌的精确枚举。':'牌面与结果取自下载时的牌局；百分比显示值经四舍五入。',48,bottom+56,14,muted);
   ctx.strokeStyle='#30423b';ctx.beginPath();ctx.moveTo(48,bottom+83);ctx.lineTo(952,bottom+83);ctx.stroke();
-  text(nativeApp?'牌局实验室 · MoonBit':"MoonHold'em · MoonBit",48,bottom+119,14,muted);
+  text(nativeApp?'牌局实验室 · MoonBit':'Poker Lab',48,bottom+119,14,muted);
   text('Ryan',952,bottom+119,14,muted,400,'right');
   return canvas;
 }
@@ -504,7 +524,7 @@ $('download-image').onclick=async()=>{
     const blob=await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(Error('PNG encoding failed')),'image/png'));
     const day=[date.getFullYear(),String(date.getMonth()+1).padStart(2,'0'),String(date.getDate()).padStart(2,'0')].join('.');
     const time=[date.getHours(),date.getMinutes(),date.getSeconds()].map(v=>String(v).padStart(2,'0')).join('');
-    pendingImage={url:URL.createObjectURL(blob),filename:`${nativeApp?'牌局实验室':"MoonHold'em"}-${snapshot.hands.length}人牌局-${day}-${time}.png`};
+    pendingImage={url:URL.createObjectURL(blob),filename:`${nativeApp?'牌局实验室':'Poker Lab'}-${snapshot.hands.length}人牌局-${day}-${time}.png`};
     $('preview-image').src=pendingImage.url;
     $('preview-filename').textContent=pendingImage.filename;
     previewDialog.showModal();
@@ -558,7 +578,7 @@ function setupDeckEntrance(){
     const tiles=cards.map((card,i)=>{
       const rect=card.getBoundingClientRect(),tile=document.createElement('div');tile.className='entrance-tile';
       Object.assign(tile.style,{left:(rect.left-bounds.left)+'px',top:(rect.top-bounds.top)+'px',width:rect.width+'px',height:rect.height+'px'});
-      tile.innerHTML='<div class="entrance-flipper"><div class="entrance-back"><span>M<span>♠</span></span></div><div class="entrance-front'+(card.classList.contains('red')?' red':'')+'">'+card.innerHTML+'</div></div>';
+      tile.innerHTML='<div class="entrance-flipper"><div class="entrance-back"></div><div class="entrance-front'+(card.classList.contains('red')?' red':'')+'">'+card.innerHTML+'</div></div>';
       layer.append(tile);
       const dx=bounds.width/2-rect.width/2-(rect.left-bounds.left),dy=bounds.height/2-rect.height/2-(rect.top-bounds.top);
       const a=tile.animate([{transform:'translate('+dx+'px,'+dy+'px) rotate('+((i%5-2)*1.2)+'deg)'},{transform:'translate(0,0) rotate(0deg)'}],{duration:650,delay:i*9,easing:'cubic-bezier(.22,.8,.2,1)',fill:'both'});animations.push(a);return tile;

@@ -3,6 +3,9 @@
 更新时间：2026-10-02。任务：将现有 MoonHold'em 网页打包为可离线使用的 Android 安装包，应用名称「牌局实验室」。不发布商店，不提交或推送 Git。用户不采用此前生成的图标。
 
 ## 最新更新：0.1.1 图标与状态栏
+后续网页改动（尚未同步 APP，按用户要求不打包）：网页标题/品牌/导出改为 Poker Lab；全局字体改用 system-ui,sans-serif，包括牌面和图片导出；示例改为默认折叠 details；页脚移除计算核心等小字，保留品牌和 Ryan；所有牌背字母由 M 统一改为 R，覆盖开场发牌、玩家与公共牌翻牌、分析结果及牌力速查。
+下一次用户明确要求更新 APP 时，再同步这些网页改动，并修改 capacitor.config.json / Android strings.xml 的应用名、build-app.mjs 旧名称替换逻辑、app.js nativeApp 分支导出名称和 test-app.mjs APP 名称断言；递增版本。此轮没有运行 build:app、cap sync 或 Gradle，dist-app 与现有 APK 保持 0.1.1。
+
 - 用户已在手机安装并使用 0.1.0，反馈系统状态栏背后为白色，并提供新的墨绿底金色黑桃图标参考。
 - 用 imagegen 基于该参考制作无水印、四角满底版本，保存为 mobile/assets/icon-source.png；此前四款概念图不使用。
 - build-icons.mjs 使用 sharp 做安装包规格转换：五种密度普通/圆形/自适应桌面资源，及 APP 页头图标。启动页也沿用新图标，网页原版标志不变。

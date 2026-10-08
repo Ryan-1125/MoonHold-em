@@ -16,7 +16,7 @@ await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
 const base=`http://127.0.0.1:${server.address().port}`;
 const browser=await chromium.launch(process.env.PLAYWRIGHT_CHANNEL?{channel:process.env.PLAYWRIGHT_CHANNEL}:{});
 try{
-  for(const native of [false,true]){
+  for(const native of (process.argv.includes('--web-only')?[false]:[false,true])){
     const context=await browser.newContext({viewport:{width:390,height:844},reducedMotion:'reduce',acceptDownloads:true});
     const page=await context.newPage();const errors=[];
     page.on('pageerror',error=>errors.push(error.message));
@@ -38,6 +38,11 @@ try{
     }
     assert.equal(await page.locator('.player-name').count(),2);
     assert.equal(await page.locator('.card-slot.filled').count(),0);
+    const presetHelp=page.locator('.preset-help');
+    if(await presetHelp.count()){
+      assert.equal(await presetHelp.evaluate(el=>el.open),false);
+      await presetHelp.locator('summary').click();
+    }
     await page.locator('[data-preset="turn"]').click();
     await page.waitForFunction(()=>document.querySelector('#result-content').textContent.includes('95.45%'));
     assert.equal(await page.locator('.card-slot.filled').count(),8);
@@ -65,7 +70,7 @@ try{
       await page.waitForFunction(()=>document.querySelector('#download-status').textContent.includes('牌局已保存为'));
     }else{
       const [download]=await Promise.all([page.waitForEvent('download'),page.locator('#confirm-download').click()]);
-      assert.match(download.suggestedFilename(),/MoonHold'em-2人牌局-.*\.png/);
+      assert.match(download.suggestedFilename(),/Poker Lab-2人牌局-.*\.png/);
     }
     await page.goto(`${url}?fresh=1`);
     await page.waitForSelector('.player-name');
