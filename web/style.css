@@ -63,6 +63,7 @@
 :root{--ui-font:system-ui,sans-serif;--card-ratio:5/7}
 .card-art{display:block;width:100%;height:100%;fill:currentColor;font-family:Georgia,serif;text-anchor:middle}
 .card-art text:first-child{font-family:Georgia,serif}
+.guide-card.kicker{background-color:#e9e7db;border-color:#e9e7db;opacity:.2}
 .card-slot,.deck-card,.guide-card,.mini-cards .mini,.river-card{aspect-ratio:var(--card-ratio);height:auto;min-height:0;padding:0;display:block;position:relative;overflow:visible}
 .card-art{position:absolute;inset:0}
 .slots{align-items:flex-start}
@@ -116,6 +117,7 @@ input,textarea,[contenteditable="true"]{caret-color:auto}
 .mini-cards .mini.result-flipping{perspective:650px;background:transparent}
 
 .card-slot.preset-flipping{perspective:650px;background:transparent}
+.deck-card.preset-flipping{position:relative;perspective:650px;background:transparent}
 .preset-awaiting .card-slot.filled .card-art{visibility:hidden}
 
 .name-editor{position:relative;min-width:0;flex:1}.name-count{display:none;position:absolute;right:5px;bottom:-12px;font-size:9px;color:var(--muted)}.name-editor:focus-within .name-count{display:block}.prob-table .player-label{display:inline-block;max-width:85px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle}.calculation-help{font-size:11px;color:var(--muted);margin:8px 0}.calculation-help summary{cursor:pointer}.calculation-help p{line-height:1.8}
@@ -148,6 +150,21 @@ button,a,summary,[data-result-seat],.card-art{-webkit-user-select:none;user-sele
 .preset-help .presets{margin:12px 0 0}
 .preset-help .preset-note{margin:10px 0 0}
 footer{flex-direction:row;align-items:center}
+.deck-layout-bar{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:36px;margin-bottom:12px}
+.deck-layout-toggle{display:block;margin:0;white-space:nowrap;flex:0 0 84px;width:84px;height:36px;text-align:left}
+.deck-tools,.deck-suit-tabs{width:200px;flex:0 0 200px}
+.deck-tools .remove-card-button{flex:1;min-width:0;justify-content:center}
+.deck-suit-tabs{display:flex;justify-content:center;gap:8px}
+.deck-suit-tabs[hidden]{display:none}
+.deck-suit-tabs button{flex:1;min-width:0;height:32px;padding:0;border:1px solid #c9c5b8;border-radius:6px;background:#eeeade;color:#24352d;font:22px Georgia,serif}
+.deck-suit-tabs button[data-suit="h"],.deck-suit-tabs button[data-suit="d"]{color:#b74d42}
+.deck-suit-tabs button:hover{border-color:var(--gold)}
+.deck-suit-tabs button[aria-pressed="true"]{border-color:var(--gold);background:var(--gold);box-shadow:none}
+.deck.compact-deck{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;max-width:560px;margin-inline:auto}
+.deck.compact-deck .deck-card{width:calc((100% - 56px)/8);flex:none}
+.deck.compact-deck .other-suit{display:none}
+.deck.compact-deck::after{content:"";order:1;width:100%;height:0}
+.deck.compact-deck .deck-card:nth-child(13n+9),.deck.compact-deck .deck-card:nth-child(13n+10),.deck.compact-deck .deck-card:nth-child(13n+11),.deck.compact-deck .deck-card:nth-child(13n+12),.deck.compact-deck .deck-card:nth-child(13n){order:2}
 /* Shared paper grain stays on the card surface, including animated faces. */
 .mark span{font-size:19px;margin-left:2px}
 .brand,.eyebrow,footer strong{font-family:Arial,sans-serif}

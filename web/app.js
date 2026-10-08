@@ -75,11 +75,80 @@ function releaseResultFlips(skip=false){
   for(const animation of waitingResultFlips){if(skip)animation.finish();else animation.play();}
   waitingResultFlips.clear();
 }
+let scrollRestoreCards=false;
+const revealedRestoreSlots=new Set();
+const revealedDeckCards=new Set();
+let scrollDeckCards=false;
+const FLIP_DURATION=480,FLIP_GAP=60;
+const flipQueue=new Map();
+let flipTimer=null,lastFlipStart=0;
+function flipKey(card){
+  if(card.dataset.deckCard)return 'deck:'+card.dataset.deckCard;
+  if(card.dataset.cardSeat!==undefined)return 'slot:'+card.dataset.cardSeat+':'+card.dataset.cardIndex;
+  return card;
+}
+function flipGroup(card){
+  if(card.dataset.deckCard)return 100;
+  if(card.dataset.cardSeat!==undefined)return 0;
+  return 200;
+}
+function pumpFlips(){
+  flipTimer=null;
+  for(const [key,item] of flipQueue)if(!item.card.isConnected){item.animation?.cancel();flipQueue.delete(key);}
+  const items=[...flipQueue.values()];
+  const main=items.filter(item=>!item.animation&&item.group<200&&item.card.getBoundingClientRect().width>0);
+  const group=Math.min(...main.map(item=>item.group));
+  const wave=card=>{
+    const rank=['2','3','4','5','6','7','8','9','T','J','Q','K','A'].indexOf(card.dataset.deckCard[0]);
+    return compactDeck?(rank<8?rank:rank-8+1):rank+['s','h','d','c'].indexOf(card.dataset.deckCard[1]);
+  };
+  const order=item=>item.group===100?wave(item.card):item.group===0?(Number(item.card.dataset.cardSeat)<0?100:Number(item.card.dataset.cardSeat)*2)+Number(item.card.dataset.cardIndex):1000;
+  const eligible=items.filter(item=>!item.animation&&(item.group===group||item.group===200)).sort((a,b)=>order(a)-order(b));
+  const item=eligible.find(item=>{
+    const rect=item.card.getBoundingClientRect();
+    return rect.width>0&&(item.group===200&&matchMedia('(min-width:901px)').matches||rect.top<innerHeight-16);
+  });
+  if(item){
+    const wait=FLIP_GAP-(performance.now()-lastFlipStart);
+    if(wait>0){flipTimer=setTimeout(pumpFlips,wait);return;}
+    lastFlipStart=performance.now();
+    const batch=item.group===100?eligible.filter(other=>other.group===100&&wave(other.card)===wave(item.card)&&other.card.getBoundingClientRect().width>0&&other.card.getBoundingClientRect().top<innerHeight-16):[item];
+    for(const current of batch){
+    const {card,face}=current;
+    current.animation=card.firstElementChild.animate([{transform:'rotateY(0deg)'},{transform:'rotateY(180deg)'}],{duration:FLIP_DURATION,easing:'cubic-bezier(.4,0,.2,1)',fill:'both'});
+    current.animation.onfinish=()=>{
+      if(card.isConnected){
+        if(card.dataset.cardSeat!==undefined)revealedRestoreSlots.add(card.dataset.cardSeat+':'+card.dataset.cardIndex);
+        if(card.dataset.deckCard)revealedDeckCards.add(card.dataset.deckCard);
+        card.innerHTML=face;delete card._pendingFace;card.classList.remove('result-flipping','preset-flipping');
+      }
+      if(flipQueue.get(flipKey(card))===current)flipQueue.delete(flipKey(card));
+      current.animation.cancel();scheduleFlips();
+    };
+    }
+    flipTimer=setTimeout(pumpFlips,FLIP_GAP);
+  }
+}
+function scheduleFlips(){if(flipTimer===null)flipTimer=setTimeout(pumpFlips,0);}
+window.addEventListener('scroll',scheduleFlips,{passive:true});
+window.addEventListener('resize',scheduleFlips);
+function flipWhenVisible(cards){
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+  cards.forEach(card=>{
+    if(card._pendingFace!==undefined)return;
+    const key=flipKey(card),previous=flipQueue.get(key);previous?.animation?.cancel();
+    const face=card.innerHTML;card._pendingFace=face;
+    card.classList.add(card.classList.contains('mini')?'result-flipping':'preset-flipping');
+    card.innerHTML='<span class="entrance-flipper"><span class="entrance-back"></span><span class="entrance-front'+(card.classList.contains('red')?' red':'')+'">'+face+'</span></span>';
+    flipQueue.set(key,{card,face,group:flipGroup(card),animation:null});
+  });
+  scheduleFlips();
+}
 function flyCard(card,from,seat,index,returning=false){
   if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
   const destination=document.querySelector(returning?`[data-deck-card="${card}"]`:`[data-card-seat="${seat}"][data-card-index="${index}"]`);
   if(!destination)return;
-  const to=destination.getBoundingClientRect();
+  const to=returning?deckCardRect(destination):destination.getBoundingClientRect();
   const flying=document.createElement('div');
   flying.className='flying-card'+('hd'.includes(card[1])?' red':'');
   flying.setAttribute('aria-hidden','true');flying.innerHTML=cardFace(card);
@@ -99,6 +168,7 @@ function removeCard(seat,index){
   finishCardFlight?.();
   const source=document.querySelector(`[data-card-seat="${seat}"][data-card-index="${index}"]`);
   const from=source?.getBoundingClientRect();
+  if(compactDeck){deckSuit=card[1];updateDeckLayout();}
   cards[index]=null;selected={seat,index};invalidate();render();
   if(from)flyCard(card,from,seat,index,true);
 }
@@ -120,6 +190,32 @@ function removeSeat(index){
   else if(selected && selected.seat>index)selected.seat--;
   detailSeat=0;invalidate();render();
 }
+let compactDeck=false,deckSuit='s';
+try{const saved=JSON.parse(localStorage.getItem('pokerlab.deck-layout')||'null');compactDeck=saved?.compact===true;if(['s','h','d','c'].includes(saved?.suit))deckSuit=saved.suit;}catch{}
+const layoutButton=document.createElement('button');
+layoutButton.type='button';layoutButton.className='text-button deck-layout-toggle';layoutButton.textContent='牌池：完整';layoutButton.setAttribute('aria-pressed','false');
+const suitTabs=document.createElement('div');suitTabs.className='deck-suit-tabs';suitTabs.hidden=true;
+for(const suit of ['s','h','d','c']){
+  const button=document.createElement('button');button.type='button';button.textContent=suits[suit];button.setAttribute('aria-label',suitNames[suit]);button.dataset.suit=suit;
+  button.onclick=()=>{deckSuit=suit;updateDeckLayout();};suitTabs.append(button);
+}
+const deckLayoutBar=document.createElement('div');deckLayoutBar.className='deck-layout-bar';deckLayoutBar.append(layoutButton,suitTabs);$('deck').before(deckLayoutBar);
+function deckCardRect(card){
+  const rect=card.getBoundingClientRect();
+  if(rect.width)return rect;
+  return document.querySelector(`[data-deck-card="${card.dataset.deckCard[0]+deckSuit}"]`).getBoundingClientRect();
+}
+function updateDeckLayout(){
+  try{localStorage.setItem('pokerlab.deck-layout',JSON.stringify({compact:compactDeck,suit:deckSuit}));}catch{}
+  $('deck').classList.toggle('compact-deck',compactDeck);
+  layoutButton.textContent=compactDeck?'牌池：分色':'牌池：完整';layoutButton.setAttribute('aria-pressed',String(compactDeck));suitTabs.hidden=!compactDeck;
+  for(const button of suitTabs.children)button.setAttribute('aria-pressed',String(button.dataset.suit===deckSuit));
+  for(const card of $('deck').querySelectorAll('.deck-card')){
+    card.classList.toggle('other-suit',compactDeck&&card.dataset.deckCard[1]!==deckSuit);
+  }
+  if(scrollDeckCards)flipWhenVisible([...$('deck').querySelectorAll('.deck-card')].filter(card=>!card.classList.contains('other-suit')&&!revealedDeckCards.has(card.dataset.deckCard)&&card._pendingFace===undefined&&!card.classList.contains('preset-flipping')));
+}
+layoutButton.onclick=()=>{compactDeck=!compactDeck;updateDeckLayout();};
 function render(selectionOnly=false){
   finishCardFlight?.();
   const activePreset=Object.keys(presets).find(key=>{
@@ -152,6 +248,7 @@ function render(selectionOnly=false){
     const badge=document.createElement('p');badge.className='seat-state';badge.textContent=result?.leaders.includes(seat)?(state.board.filter(Boolean).length===5?'本局获胜':'当前领先'):'';panel.append(badge);table.append(panel);
   });
   $('board-slots').replaceChildren(...state.board.map((card,index)=>slot(card,-1,index)));
+  if(scrollRestoreCards)flipWhenVisible([...document.querySelectorAll('.card-slot.filled')].filter(card=>!revealedRestoreSlots.has(card.dataset.cardSeat+':'+card.dataset.cardIndex)));
   }
   for(const card of document.querySelectorAll('.card-slot')){const active=selected?.seat===Number(card.dataset.cardSeat)&&selected?.index===Number(card.dataset.cardIndex);card.classList.toggle('active',active);card.setAttribute('aria-pressed',String(active));}
   $('seat-count').textContent=`${state.hands.length} 人牌桌`;
@@ -162,9 +259,10 @@ function render(selectionOnly=false){
   deck.replaceChildren();
   for(const suit of ['s','h','d','c'])for(const rank of ['2','3','4','5','6','7','8','9','T','J','Q','K','A']){
     const card=rank+suit,b=document.createElement('button');b.dataset.deckCard=card;b.className='deck-card'+('hd'.includes(suit)?' red':'');b.innerHTML=cardFace(card);b.disabled=!selected||used.has(card);b.classList.toggle('used-card',used.has(card));b.setAttribute('aria-label',suitNames[suit]+(rank==='T'?'10':rank));
-    b.onclick=()=>{const target=selectedCards();if(!target||!selected||used.has(card))return;const from=b.getBoundingClientRect(),landing={...selected};target[selected.index]=card;invalidate();const next=target.findIndex(c=>!c);selected=next>=0?{seat:selected.seat,index:next}:null;render();flyCard(card,from,landing.seat,landing.index);};deck.append(b);
+    b.onclick=()=>{const target=selectedCards();if(!target||!selected||used.has(card))return;const from=deckCardRect(b),landing={...selected};target[selected.index]=card;invalidate();const next=target.findIndex(c=>!c);selected=next>=0?{seat:selected.seat,index:next}:null;render();flyCard(card,from,landing.seat,landing.index);};deck.append(b);
   }
   }
+  updateDeckLayout();
   const count=state.board.filter(Boolean).length;
   $('stage').textContent=(count===3?'翻牌':count===4?'转牌':count===5?'河牌':'选择公共牌')+` · ${count} / 5`;
   $('selection-label').textContent=selected?`正在选择：${selected.seat===-1?'公共牌':seatLabel(selected.seat)} · 第 ${selected.index+1} 张`:'请先点击要选牌或替换的牌位';
@@ -264,7 +362,9 @@ function showResults(reveal=false){
   const p=r.players[detailSeat];
   const reason=p.reason.replaceAll('玩家一','__LEFT__').replaceAll('玩家二',seatLabel(p.reference)+' ').replaceAll('__LEFT__',seatLabel(detailSeat)+' ');
   $('result-content').innerHTML=`<h3 class="result-title">${escapeHTML(title)}</h3><div class="prob-head"><span>全桌胜负概率</span><small>${outcomeLabel(r.total)}</small></div><details class="calculation-help"><summary>说明</summary><p>${finished?'公共牌已全部发出，以下为最终摊牌结果。':'当前领先不代表最终获胜。'}</p><p>点击玩家查看详情。</p><p>所有玩家底牌已知，枚举剩余公共牌。概率按全桌计算。共同获胜时，按人数平分该结局的权益。金色边框表示与对比玩家比较时的关键牌。</p></details><div class="prob-table-wrap"><table class="prob-table" aria-label="全桌胜负概率"><thead><tr><th>玩家</th><th>独赢</th><th>共同获胜</th><th>落败</th><th>权益</th></tr></thead><tbody>${rows}</tbody></table></div><div class="detail-heading"><h3>${nameHTML(detailSeat)} · 牌力详情</h3><span>${p.hand.category}</span></div><div class="mini-cards">${p.hand.best.map(c=>cardHTML(c,p.decisive.includes(c)?'mini decisive':'mini')).join('')}</div><div class="explanation"><strong>${finished?'摊牌比较':'当前牌力比较'} · 对比${nameHTML(p.reference)}</strong><p>${escapeHTML(reason)}</p></div>`;
-  if(reveal&&!matchMedia('(prefers-reduced-motion: reduce)').matches){
+  if(reveal&&reloading){
+    flipWhenVisible([...document.querySelectorAll('#result-content .mini-cards .mini')]);
+  }else if(reveal&&!matchMedia('(prefers-reduced-motion: reduce)').matches){
     document.querySelectorAll('#result-content .mini-cards .mini').forEach((card,index)=>{
       const face=card.innerHTML;
       card.classList.add('result-flipping');
@@ -315,7 +415,7 @@ async function animateBatch(moves,returning=false){
     await Promise.all(moves.map(async(move,i)=>{
       const destination=document.querySelector(returning?`[data-deck-card="${move.card}"]`:`[data-card-seat="${move.seat}"][data-card-index="${move.index}"]`);
       if(!destination)return;
-      const to=destination.getBoundingClientRect(),from=move.from;
+      const to=returning?deckCardRect(destination):destination.getBoundingClientRect(),from=move.from;
       const flying=document.createElement('div');flying.className='flying-card'+('hd'.includes(move.card[1])?' red':'');flying.setAttribute('aria-hidden','true');flying.innerHTML=cardFace(move.card);
       Object.assign(flying.style,{left:from.left+'px',top:from.top+'px',width:from.width+'px',height:from.height+'px'});
       if(returning)destination.classList.add('return-pending');else destination.style.visibility='hidden';document.body.append(flying);
@@ -329,11 +429,11 @@ $('deal-all').onclick=()=>{
   if(batchAnimating)return;
   const available=[...document.querySelectorAll('.deck-card:not(.used-card)')].map(el=>el.dataset.deckCard),moves=[];
   if(state.hands.every(hand=>hand.every(Boolean))){
-    state.board.forEach((card,index)=>{if(card)return;const chosen=available.splice(Math.floor(Math.random()*available.length),1)[0];const from=document.querySelector(`[data-deck-card="${chosen}"]`).getBoundingClientRect();state.board[index]=chosen;moves.push({card:chosen,seat:-1,index,from});});
+    state.board.forEach((card,index)=>{if(card)return;const chosen=available.splice(Math.floor(Math.random()*available.length),1)[0];const from=deckCardRect(document.querySelector(`[data-deck-card="${chosen}"]`));state.board[index]=chosen;moves.push({card:chosen,seat:-1,index,from});});
   }else for(let index=0;index<2;index++)state.hands.forEach((hand,seat)=>{
     if(hand[index])return;
     const choice=Math.floor(Math.random()*available.length),card=available.splice(choice,1)[0];
-    const from=document.querySelector(`[data-deck-card="${card}"]`).getBoundingClientRect();
+    const from=deckCardRect(document.querySelector(`[data-deck-card="${card}"]`));
     hand[index]=card;moves.push({card,seat,index,from});
   });
   if(!moves.length)return;
@@ -564,19 +664,23 @@ function setupDeckEntrance(){
   const deck=$('deck'),motion=matchMedia('(prefers-reduced-motion: reduce)');
   if(motion.matches||!('IntersectionObserver' in window))return;
   deck.classList.add('deck-awaiting');
-  document.body.classList.add('restoring-deck');
+  if(reloading){
+    scrollRestoreCards=true;flipWhenVisible([...document.querySelectorAll('.card-slot.filled')]);
+    deck.classList.remove('deck-awaiting');scrollDeckCards=true;updateDeckLayout();return;
+  }
+  else document.body.classList.add('restoring-deck');
   let done=false,layer=null;const animations=[];
   const cleanup=()=>{done=true;releaseResultFlips(true);observer.disconnect();animations.forEach(a=>a.cancel());layer?.remove();deck.classList.remove('deck-awaiting');document.body.classList.remove('restoring-deck');deck.querySelectorAll('.deck-card').forEach(c=>c.style.visibility='');document.querySelectorAll('.entrance-revealed').forEach(c=>c.classList.remove('entrance-revealed'));window.removeEventListener('resize',cleanup);motion.removeEventListener('change',cleanup);if(finishDeckEntrance===cleanup)finishDeckEntrance=null;};
-  finishDeckEntrance=cleanup;
   let started=false;
   const startEntrance=async()=>{
     if(done||started)return;
     started=true;
+    finishDeckEntrance=cleanup;
     observer.disconnect();
-    const bounds=deck.getBoundingClientRect(),cards=[...deck.querySelectorAll('.deck-card')];
+    const bounds=deck.getBoundingClientRect(),cards=[...deck.querySelectorAll('.deck-card')].filter(card=>!card.classList.contains('other-suit')||card.classList.contains('used-card'));
     layer=document.createElement('div');layer.className='deck-entrance';layer.setAttribute('aria-hidden','true');deck.append(layer);
     const tiles=cards.map((card,i)=>{
-      const rect=card.getBoundingClientRect(),tile=document.createElement('div');tile.className='entrance-tile';
+      const rect=deckCardRect(card),tile=document.createElement('div');tile.className='entrance-tile';
       Object.assign(tile.style,{left:(rect.left-bounds.left)+'px',top:(rect.top-bounds.top)+'px',width:rect.width+'px',height:rect.height+'px'});
       tile.innerHTML='<div class="entrance-flipper"><div class="entrance-back"></div><div class="entrance-front'+(card.classList.contains('red')?' red':'')+'">'+card.innerHTML+'</div></div>';
       layer.append(tile);
@@ -589,7 +693,7 @@ function setupDeckEntrance(){
     state.board.forEach((card,index)=>{if(card)destinations.set(card,{seat:-1,index});});
     let flightOrder=0;
     const flips=tiles.map(async(tile,i)=>{
-      const destination=destinations.get(cards[i].dataset.deckCard);
+      const destination=reloading?null:destinations.get(cards[i].dataset.deckCard);
       if(destination){
         const target=document.querySelector(`[data-card-seat="${destination.seat}"][data-card-index="${destination.index}"]`);
         const from=tile.getBoundingClientRect(),to=target.getBoundingClientRect();
@@ -599,7 +703,7 @@ function setupDeckEntrance(){
         if(!deckFacesStarted){deckFacesStarted=true;releaseResultFlips();}
         cards[i].style.visibility='visible';
       }
-      const a=tile.firstElementChild.animate([{transform:'rotateY(0deg)'},{transform:'rotateY(180deg)'}],{duration:480,delay:destination?0:(i%13)*38+Math.floor(i/13)*65,easing:'cubic-bezier(.4,0,.2,1)',fill:'both'});
+      const a=tile.firstElementChild.animate([{transform:'rotateY(0deg)'},{transform:'rotateY(180deg)'}],{duration:480,delay:destination?0:((i%13)+Math.floor(i/13))*FLIP_GAP,easing:'cubic-bezier(.4,0,.2,1)',fill:'both'});
       animations.push(a);await a.finished.catch(()=>{});if(done)return;
       if(destination){document.querySelector(`[data-card-seat="${destination.seat}"][data-card-index="${destination.index}"]`)?.classList.add('entrance-revealed');tile.style.visibility='hidden';}
     });
@@ -608,8 +712,7 @@ function setupDeckEntrance(){
   const observer=new IntersectionObserver(entries=>{
     if(entries.some(e=>e.isIntersecting))void startEntrance();
   },{threshold:0.15});
-  if(reloading)requestAnimationFrame(()=>void startEntrance());
-  else observer.observe(deck);
+  observer.observe(deck);
   window.addEventListener('resize',cleanup);motion.addEventListener('change',cleanup);
 }
 setupDeckEntrance();
