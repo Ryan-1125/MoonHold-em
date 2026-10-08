@@ -33,8 +33,8 @@ try{
     const url=`${base}/${native?'dist-app':'web'}/index.html`;
     await page.goto(url);
     if(native){
-      await page.waitForFunction(()=>document.querySelector('.app-brand-icon')?.naturalWidth===192);
-      assert.match(await page.locator('.brand').textContent(),/牌局实验室/);
+      assert.equal(await page.locator('.mark').textContent(),'R♠');
+      assert.match(await page.locator('.brand').textContent(),/Poker Lab/);
     }
     assert.equal(await page.locator('.player-name').count(),2);
     assert.equal(await page.locator('.card-slot.filled').count(),0);

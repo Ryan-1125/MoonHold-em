@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">牌局实验室</string>
-    <string name="title_activity_main">牌局实验室</string>
+    <string name="app_name">Poker Lab</string>
+    <string name="title_activity_main">Poker Lab</string>
     <string name="package_name">io.github.ryan1125.pokerlab</string>
     <string name="custom_url_scheme">io.github.ryan1125.pokerlab</string>
 </resources>

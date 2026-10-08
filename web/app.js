@@ -199,7 +199,8 @@ for(const suit of ['s','h','d','c']){
   const button=document.createElement('button');button.type='button';button.textContent=suits[suit];button.setAttribute('aria-label',suitNames[suit]);button.dataset.suit=suit;
   button.onclick=()=>{deckSuit=suit;updateDeckLayout();};suitTabs.append(button);
 }
-const deckLayoutBar=document.createElement('div');deckLayoutBar.className='deck-layout-bar';deckLayoutBar.append(layoutButton,suitTabs);$('deck').before(deckLayoutBar);
+const deckLayoutBar=document.createElement('div');deckLayoutBar.className='deck-layout-bar';deckLayoutBar.append(suitTabs);$('deck').before(deckLayoutBar);
+document.querySelector('.deck-heading').insertBefore(layoutButton,document.querySelector('.deck-tools'));
 function deckCardRect(card){
   const rect=card.getBoundingClientRect();
   if(rect.width)return rect;
@@ -215,7 +216,16 @@ function updateDeckLayout(){
   }
   if(scrollDeckCards)flipWhenVisible([...$('deck').querySelectorAll('.deck-card')].filter(card=>!card.classList.contains('other-suit')&&!revealedDeckCards.has(card.dataset.deckCard)&&card._pendingFace===undefined&&!card.classList.contains('preset-flipping')));
 }
-layoutButton.onclick=()=>{compactDeck=!compactDeck;updateDeckLayout();};
+layoutButton.onclick=()=>{
+  for(const card of $('deck').querySelectorAll('.deck-card')){
+    const key=flipKey(card),pending=flipQueue.get(key);
+    pending?.animation?.cancel();flipQueue.delete(key);
+    if(card._pendingFace!==undefined){card.innerHTML=card._pendingFace;delete card._pendingFace;}
+    card.classList.remove('preset-flipping');
+  }
+  revealedDeckCards.clear();scrollDeckCards=true;
+  compactDeck=!compactDeck;updateDeckLayout();
+};
 function render(selectionOnly=false){
   finishCardFlight?.();
   const activePreset=Object.keys(presets).find(key=>{
@@ -265,7 +275,7 @@ function render(selectionOnly=false){
   updateDeckLayout();
   const count=state.board.filter(Boolean).length;
   $('stage').textContent=(count===3?'翻牌':count===4?'转牌':count===5?'河牌':'选择公共牌')+` · ${count} / 5`;
-  $('selection-label').textContent=selected?`正在选择：${selected.seat===-1?'公共牌':seatLabel(selected.seat)} · 第 ${selected.index+1} 张`:'请先点击要选牌或替换的牌位';
+  $('selection-label').textContent=selected?`正在选择：${selected.seat===-1?'公共牌':seatLabel(selected.seat)} · 第 ${selected.index+1} 张`:'';
   const ready=state.hands.every(h=>h.every(Boolean))&&count>=3;
   const remaining=52-2*state.hands.length-count;
   const outcomes=count===3?remaining*(remaining-1)/2:count===4?remaining:1;
@@ -544,7 +554,7 @@ function tableImage(snapshot,analysis,date){
     ctx.font=`${w*20/50}px Georgia,serif`;
     ctx.fillText(suits[value[1]],x+w/2,y+w*51/50);
   };
-  text(nativeApp?'牌局实验室':'Poker Lab',48,67,34,gold,650);
+  text(nativeApp?'Poker Lab':'Poker Lab',48,67,34,gold,650);
   text('牌局快照',952,65,21,ink,500,'right');
   text(date.toLocaleString('zh-CN',{hour12:false}),952,94,13,muted,400,'right');
   const boardCount=snapshot.board.filter(Boolean).length;
@@ -576,7 +586,7 @@ function tableImage(snapshot,analysis,date){
   text(analysis?'所有底牌已知；共同获胜时按人数平分权益。不含下注与边池。':'这是尚未计算的牌面快照；未展示概率或胜负结论。',48,bottom+30,14,muted);
   text(analysis&&boardCount<5?'当前领先不代表最终获胜。概率来自全部剩余公共牌的精确枚举。':'牌面与结果取自下载时的牌局；百分比显示值经四舍五入。',48,bottom+56,14,muted);
   ctx.strokeStyle='#30423b';ctx.beginPath();ctx.moveTo(48,bottom+83);ctx.lineTo(952,bottom+83);ctx.stroke();
-  text(nativeApp?'牌局实验室 · MoonBit':'Poker Lab',48,bottom+119,14,muted);
+  text('Poker Lab',48,bottom+119,14,muted);
   text('Ryan',952,bottom+119,14,muted,400,'right');
   return canvas;
 }
@@ -624,7 +634,7 @@ $('download-image').onclick=async()=>{
     const blob=await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(Error('PNG encoding failed')),'image/png'));
     const day=[date.getFullYear(),String(date.getMonth()+1).padStart(2,'0'),String(date.getDate()).padStart(2,'0')].join('.');
     const time=[date.getHours(),date.getMinutes(),date.getSeconds()].map(v=>String(v).padStart(2,'0')).join('');
-    pendingImage={url:URL.createObjectURL(blob),filename:`${nativeApp?'牌局实验室':'Poker Lab'}-${snapshot.hands.length}人牌局-${day}-${time}.png`};
+    pendingImage={url:URL.createObjectURL(blob),filename:`${nativeApp?'Poker Lab':'Poker Lab'}-${snapshot.hands.length}人牌局-${day}-${time}.png`};
     $('preview-image').src=pendingImage.url;
     $('preview-filename').textContent=pendingImage.filename;
     previewDialog.showModal();

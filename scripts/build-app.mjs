@@ -12,11 +12,7 @@ for(const name of ['core','android','app'])await copyFile(new URL(`node_modules/
 for(const name of ['app.js','style.css','worker.js','engine.mjs'])await copyFile(new URL(`web/${name}`,root),new URL(name,output));
 await copyFile(new URL('mobile/native.css',root),new URL('native.css',output));
 let html=await readFile(new URL('web/index.html',root),'utf8');
-html=html.replace('<title>MoonHold\'em · 牌局实验室</title>','<title>牌局实验室</title>')
-  .replace('</head>','<link rel="stylesheet" href="native.css"></head>')
-  .replace('<span class="mark">M<span>♠</span></span>','<img class="app-brand-icon" src="app-icon.png" alt="" width="42" height="42">')
-  .replace(' MoonHold\'em</a>',' 牌局实验室</a>')
-  .replace('<strong>MoonHold\'em</strong>','<strong>牌局实验室</strong>')
+html=html.replace('</head>','<link rel="stylesheet" href="native.css"></head>')
   .replace('src="app.js"','src="native.js"');
 await writeFile(new URL('index.html',output),html);
 await build({entryPoints:[fileURLToPath(new URL('mobile/native.js',root))],outfile:fileURLToPath(new URL('native.js',output)),bundle:true,format:'esm',target:'es2022',external:['./app.js']});
