@@ -2,7 +2,7 @@
 
 一个由 Ryan 制作的德州扑克牌局分析工具。选好玩家底牌与公共牌，查看当前最佳五张、全桌胜负概率，以及哪些河牌会改变结果。支持浏览器和可离线使用的 Android APP。
 
-[在线体验](https://ryan-1125.github.io/MoonHold-em/) · [Android 安装与构建](docs/ANDROID.md) · [计算核心 API](https://mooncakes.io/docs/Ryan-1125/moonholdem)
+[在线体验](https://ryan-1125.github.io/PokerLab/) · [Android 安装与构建](docs/ANDROID.md) · [计算核心 API](https://mooncakes.io/docs/Ryan-1125/moonholdem)
 
 ![牌局分析界面](images/multiplayer-desktop.png)
 

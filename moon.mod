@@ -4,7 +4,7 @@ version = "0.1.0"
 
 readme = "README.md"
 
-repository = "https://github.com/Ryan-1125/MoonHold-em"
+repository = "https://github.com/Ryan-1125/PokerLab"
 
 license = "MIT"
 
