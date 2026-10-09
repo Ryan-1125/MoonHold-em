@@ -1,10 +1,10 @@
-# 牌局实验室 Android APP
+# Poker Lab Android APP
 
 Android 版本复用 MoonHold'em 的 MoonBit 核心与网页界面，采用 Capacitor 8。网页、Worker 和编译后的计算引擎均随 APK 打包，使用时不需要开启电脑或访问 GitHub Pages。
 
 ## 手机安装
 
-将 `artifacts/PokerLab-0.1.1.apk` 传到 Android 手机并打开，按系统提示允许当前文件管理器安装应用。已安装旧版时直接覆盖安装，无需卸载。最低 Android 7.0（API 24），需要较新的 Android System WebView。原生 HarmonyOS 不属于此 APK 的支持范围。
+将 `artifacts/PokerLab-0.1.3.apk` 传到 Android 手机并打开，按系统提示允许当前文件管理器安装应用。已安装旧版时直接覆盖安装，无需卸载。最低 Android 7.0（API 24），需要较新的 Android System WebView。原生 HarmonyOS 不属于此 APK 的支持范围。
 
 首次打开为空白二人牌桌。APP 会在设备上保留牌局与玩家名，重新打开自动恢复；网页仍保持「新进入为空桌、刷新恢复」规则。
 

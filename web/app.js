@@ -80,6 +80,7 @@ const revealedRestoreSlots=new Set();
 const revealedDeckCards=new Set();
 let scrollDeckCards=false;
 const FLIP_DURATION=480,FLIP_GAP=60;
+// 队列以牌位标识去重，计算结果重绘时用新节点替换旧节点，避免翻牌丢失。
 const flipQueue=new Map();
 let flipTimer=null,lastFlipStart=0;
 function flipKey(card){
@@ -98,6 +99,7 @@ function pumpFlips(){
   const items=[...flipQueue.values()];
   const main=items.filter(item=>!item.animation&&item.group<200&&item.card.getBoundingClientRect().width>0);
   const group=Math.min(...main.map(item=>item.group));
+  // 行号 + 列号相同的牌同时翻开，形成跨花色的斜向波浪。
   const wave=card=>{
     const rank=['2','3','4','5','6','7','8','9','T','J','Q','K','A'].indexOf(card.dataset.deckCard[0]);
     return compactDeck?(rank<8?rank:rank-8+1):rank+['s','h','d','c'].indexOf(card.dataset.deckCard[1]);
@@ -183,8 +185,35 @@ function slot(card,seat,index){
   b.ondblclick=event=>{event.preventDefault();removeCard(seat,index);};
   if(card)b.title='双击移除此牌';return b;
 }
+let seatPositions=null;
+function captureSeatPositions(removed=-1){
+  seatPositions=[...document.querySelectorAll('#players>.seat')].map(el=>el.getBoundingClientRect());
+  if(removed>=0)seatPositions.splice(removed,1);
+}
+function animateSeatPositions(){
+  if(!seatPositions)return;
+  const before=seatPositions;seatPositions=null;
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+  document.querySelectorAll('#players>.seat').forEach((el,i)=>{
+    const old=before[i],rect=el.getBoundingClientRect();
+    const frames=old?[{transform:`translate(${old.left-rect.left}px,${old.top-rect.top}px) scale(${old.width/rect.width},${old.height/rect.height})`},{transform:'none'}]:[{opacity:0,transform:'translateY(12px)'},{opacity:1,transform:'none'}];
+    el.style.transformOrigin='top left';el.animate(frames,{duration:320,easing:'cubic-bezier(.22,.68,.12,1)'});
+  });
+}
+let previousLeaders=null;
+function animateLeaderChange(){
+  const next=[...result.leaders];
+  const old=previousLeaders;previousLeaders=next;
+  if(!old||old.join(',')===next.join(',')||matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+  document.querySelectorAll('#players>.seat').forEach((el,i)=>{
+    if(old.includes(i)===next.includes(i))return;
+    el.animate(next.includes(i)?[{boxShadow:'0 0 0 0 #e1bd7800'},{boxShadow:'0 0 0 3px #e1bd7855',offset:.45},{boxShadow:'0 0 0 0 #e1bd7800'}]:[{borderColor:'#e1bd78'},{borderColor:getComputedStyle(el).borderColor}],{duration:480,easing:'ease-out'});
+  });
+  document.querySelectorAll('.leader-star').forEach(el=>el.animate([{opacity:0},{opacity:1}],{duration:320}));
+}
 function removeSeat(index){
   if(state.hands.length<=2)return;
+  captureSeatPositions(index);previousLeaders=null;
   state.hands.splice(index,1);state.names?.splice(index,1);
   if(selected?.seat===index)selected=null;
   else if(selected && selected.seat>index)selected.seat--;
@@ -202,6 +231,7 @@ for(const suit of ['s','h','d','c']){
 const deckLayoutBar=document.createElement('div');deckLayoutBar.className='deck-layout-bar';deckLayoutBar.append(suitTabs);$('deck').before(deckLayoutBar);
 document.querySelector('.deck-heading').insertBefore(layoutButton,document.querySelector('.deck-tools'));
 function deckCardRect(card){
+  // 分色模式隐藏其他花色；飞牌仍需使用当前花色同点数牌位的有效坐标。
   const rect=card.getBoundingClientRect();
   if(rect.width)return rect;
   return document.querySelector(`[data-deck-card="${card.dataset.deckCard[0]+deckSuit}"]`).getBoundingClientRect();
@@ -211,6 +241,7 @@ function updateDeckLayout(){
   $('deck').classList.toggle('compact-deck',compactDeck);
   layoutButton.textContent=compactDeck?'牌池：分色':'牌池：完整';layoutButton.setAttribute('aria-pressed',String(compactDeck));suitTabs.hidden=!compactDeck;
   for(const button of suitTabs.children)button.setAttribute('aria-pressed',String(button.dataset.suit===deckSuit));
+  suitTabs.style.setProperty('--suit-index',['s','h','d','c'].indexOf(deckSuit));
   for(const card of $('deck').querySelectorAll('.deck-card')){
     card.classList.toggle('other-suit',compactDeck&&card.dataset.deckCard[1]!==deckSuit);
   }
@@ -258,6 +289,7 @@ function render(selectionOnly=false){
     const badge=document.createElement('p');badge.className='seat-state';badge.textContent=result?.leaders.includes(seat)?(state.board.filter(Boolean).length===5?'本局获胜':'当前领先'):'';panel.append(badge);table.append(panel);
   });
   $('board-slots').replaceChildren(...state.board.map((card,index)=>slot(card,-1,index)));
+  animateSeatPositions();
   if(scrollRestoreCards)flipWhenVisible([...document.querySelectorAll('.card-slot.filled')].filter(card=>!revealedRestoreSlots.has(card.dataset.cardSeat+':'+card.dataset.cardIndex)));
   }
   for(const card of document.querySelectorAll('.card-slot')){const active=selected?.seat===Number(card.dataset.cardSeat)&&selected?.index===Number(card.dataset.cardIndex);card.classList.toggle('active',active);card.setAttribute('aria-pressed',String(active));}
@@ -364,6 +396,24 @@ function refreshNames(){
   document.querySelector('.explanation p').textContent=p.reason.replace(/玩家一|玩家二/g,word=>seatLabel(word==='玩家一'?detailSeat:p.reference)+' ');
   document.querySelectorAll('[data-winner-seats]').forEach(el=>{const ids=el.dataset.winnerSeats.split(',').map(Number);el.textContent=ids.map(i=>seatLabel(i)).join('、')+' '+(ids.length>1?'共同获胜':'获胜');});
 }
+let previousProbabilities=null,probabilityFrame=null;
+function animateProbabilities(){
+  // 只插值显示文本，计算结果和图片导出始终使用未经插值的原始数据。
+  cancelAnimationFrame(probabilityFrame);
+  const cells=[...document.querySelectorAll('.prob-table tbody td')];
+  const target=cells.map(cell=>Number.parseFloat(cell.textContent));
+  const from=previousProbabilities?.length===target.length?previousProbabilities:target.map(()=>0);
+  previousProbabilities=target;
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+  const start=performance.now();
+  const tick=now=>{
+    if(cells.some(cell=>!cell.isConnected))return;
+    const t=Math.min(1,(now-start)/300),ease=1-Math.pow(1-t,3);
+    cells.forEach((cell,i)=>{cell.textContent=(t===1?target[i]:from[i]+(target[i]-from[i])*ease).toFixed(2)+'%';});
+    if(t<1)probabilityFrame=requestAnimationFrame(tick);
+  };
+  tick(start);
+}
 function showResults(reveal=false){
   const r=result,finished=state.board.filter(Boolean).length===5;
   const pct=n=>(n/r.total*100).toFixed(2);
@@ -384,6 +434,7 @@ function showResults(reveal=false){
       animation.onfinish=()=>{waitingResultFlips.delete(animation);card.innerHTML=face;card.classList.remove('result-flipping');animation.cancel();};
     });
   }
+  if(reveal)animateProbabilities();
   const riversHTML=riverSection(r);
   riverLayoutObserver.disconnect();
   $('river-content').innerHTML=riversHTML;
@@ -405,7 +456,7 @@ worker.onmessage=({data})=>{
   if(data.id!==revision)return;
   busy=false;
   if(data.error||data.result?.error){document.body.classList.remove('preset-awaiting');render();$('message').textContent=data.error||data.result.error;$('result-status').textContent='计算失败';return;}
-  const revealTable=document.body.classList.contains('preset-awaiting');document.body.classList.remove('preset-awaiting');result=data.result;detailSeat=result.leaders[0];render();if(revealTable)revealPresetCards();showResults(true);$('message').textContent='';$('result-status').textContent='';
+  const revealTable=document.body.classList.contains('preset-awaiting');document.body.classList.remove('preset-awaiting');result=data.result;detailSeat=result.leaders[0];render();if(revealTable)revealPresetCards();showResults(true);animateLeaderChange();$('message').textContent='';$('result-status').textContent='';
   if(riverNavigation){$(riverNavigation).scrollIntoView({block:'start'});riverNavigation=null;}
 };
 worker.onerror=()=>{document.body.classList.remove('preset-awaiting');busy=false;render();$('message').textContent='计算模块加载失败，请重新运行 node scripts/serve-web.mjs 并刷新页面。';};
@@ -455,7 +506,7 @@ $('reset').onclick=()=>{
   [...state.hands,state.board].forEach((cards,group)=>cards.forEach((card,index)=>{if(!card)return;const seat=group===state.hands.length?-1:group;const from=document.querySelector(`[data-card-seat="${seat}"][data-card-index="${index}"]`).getBoundingClientRect();moves.push({card,seat,index,from});}));
   state={names:state.names,hands:state.hands.map(()=>[null,null]),board:[null,null,null,null,null]};selected=null;detailSeat=0;invalidate();render();void animateBatch(moves,true);
 };
-$('add-seat').onclick=()=>{if(state.hands.length>=9)return;state.names??=state.hands.map(()=>'');state.names.push('');state.hands.push([null,null]);selected={seat:state.hands.length-1,index:0};invalidate();render();};
+$('add-seat').onclick=()=>{if(state.hands.length>=9)return;captureSeatPositions();previousLeaders=null;state.names??=state.hands.map(()=>'');state.names.push('');state.hands.push([null,null]);selected={seat:state.hands.length-1,index:0};invalidate();render();};
 for(const b of document.querySelectorAll('[data-preset]'))b.onclick=()=>load(b.dataset.preset);
 const reloading=performance.getEntriesByType('navigation')[0]?.type==='reload';
 document.querySelector('.brand').addEventListener('click',event=>{
@@ -729,7 +780,7 @@ setupDeckEntrance();
 
 // Ignore actions until visual transitions settle; scrolling remains available.
 function animationIsPlaying(){
-  return Boolean(batchAnimating||finishDeckEntrance||finishCardFlight)||document.getAnimations().some(a=>a.playState==='running'&&a.effect?.target?.closest('main,footer'));
+  return Boolean(batchAnimating||finishDeckEntrance||finishCardFlight)||document.getAnimations().some(a=>a.playState==='running'&&a.effect?.getTiming().iterations!==Infinity&&a.effect?.target?.closest('main,footer'));
 }
 function guardAnimationInput(event){
   if(event.target.closest?.('.brand,#open-guide,#hand-guide'))return;

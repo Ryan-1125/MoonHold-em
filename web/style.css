@@ -117,6 +117,9 @@ input,textarea,[contenteditable="true"]{caret-color:auto}
 .mini-cards .mini.result-flipping{perspective:650px;background:transparent}
 
 .card-slot.preset-flipping{perspective:650px;background:transparent}
+@keyframes slot-breathe{0%,100%{border-color:#e1bd7870;box-shadow:0 0 0 0 #e1bd7800}50%{border-color:#e1bd78;box-shadow:0 0 0 2px #e1bd7820}}
+.card-slot.active:not(.filled){animation:slot-breathe 1800ms ease-in-out infinite}
+@media(prefers-reduced-motion:reduce){.card-slot.active:not(.filled){animation:none}}
 .deck-card.preset-flipping{position:relative;perspective:650px;background:transparent}
 .preset-awaiting .card-slot.filled .card-art{visibility:hidden}
 
@@ -163,12 +166,14 @@ body>header{position:sticky;top:0;z-index:1100;height:72px;background:var(--bg);
 .deck-tools #remove{padding:6px}
 @media(max-width:360px){.deck-tools,.deck-suit-tabs{width:164px;flex-basis:164px}.deck-tools{gap:6px}}
 .deck-tools .remove-card-button{flex:1;min-width:0;justify-content:center}
-.deck-suit-tabs{display:flex;justify-content:center;gap:8px}
+.deck-suit-tabs{display:flex;justify-content:center;gap:8px;position:relative;background:transparent;isolation:isolate}
+.deck-suit-tabs::before{content:"";position:absolute;left:0;top:0;width:calc((100% - 24px)/4);height:32px;border-radius:6px;background:var(--gold);transform:translateX(calc(var(--suit-index,0) * (100% + 8px)));transition:transform 240ms cubic-bezier(.22,.68,.12,1);z-index:-1;pointer-events:none}
 .deck-suit-tabs[hidden]{display:none}
 .deck-suit-tabs button{flex:1;min-width:0;height:32px;padding:0;border:1px solid #c9c5b8;border-radius:6px;background:#eeeade;color:#24352d;font:22px Georgia,serif}
 .deck-suit-tabs button[data-suit="h"],.deck-suit-tabs button[data-suit="d"]{color:#b74d42}
 .deck-suit-tabs button:hover{border-color:var(--gold)}
-.deck-suit-tabs button[aria-pressed="true"]{border-color:var(--gold);background:var(--gold);box-shadow:none}
+.deck-suit-tabs button[aria-pressed="true"]{border-color:var(--gold);background:transparent;box-shadow:none}
+@media(prefers-reduced-motion:reduce){.deck-suit-tabs::before{transition:none}}
 .deck.compact-deck{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;max-width:560px;margin-inline:auto}
 .deck.compact-deck .deck-card{width:calc((100% - 56px)/8);flex:none}
 .deck.compact-deck .other-suit{display:none}

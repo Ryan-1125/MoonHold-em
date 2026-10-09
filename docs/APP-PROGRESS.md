@@ -1,3 +1,10 @@
+# Poker Lab 0.1.3（2026-10-09）
+
+README 已重写，动画队列、牌池坐标回退、概率插值补充注释。新增顶部紧凑布局、布局切换翻牌修复、花色滑块、玩家布局过渡、领先切换、空位呼吸、概率数字过渡已同步到 dist-app 和 Android assets。versionCode 4 / versionName 0.1.3。
+
+尚未生成可交付的 0.1.3 APK：隔离环境下 moon 报 current directory 拒绝访问；复用未修改且通过 test-web 的计算引擎完成资源同步后，Gradle 在 AAPT2 资源链接失败。最后一次标准构建仍在 moon 阶段失败。不要把旧 APK 当作 0.1.3。可在本机普通 PowerShell 运行 npm run android:apk。
+
+验证：node --check、test-web、git diff --check 通过。test-app 因 Edge 启动失败未完成。签名文件未变更，未提交或推送 Git。
 # Poker Lab 0.1.2 同步记录（2026-10-08）
 
 用户已授权同步并生成 APP。已同步当前网页布局、品牌、字体、牌背纹理、分色牌池、翻牌调度和固定页头。应用名 Poker Lab，versionCode 3，沿用原包名及本地签名；桌面图标保留。网页与模拟原生桥接测试通过。下面为历史记录，之前的待同步说明已由本次同步取代。

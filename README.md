@@ -1,149 +1,102 @@
-# MoonHold'em
+# Poker Lab
 
-[在线体验](https://ryan-1125.github.io/MoonHold-em/) · [Mooncakes 包](https://mooncakes.io/docs/Ryan-1125/moonholdem)
+一个由 Ryan 制作的德州扑克牌局分析工具。选好玩家底牌与公共牌，查看当前最佳五张、全桌胜负概率，以及哪些河牌会改变结果。支持浏览器和可离线使用的 Android APP。
 
-MoonHold'em 是一个使用 MoonBit 编写的德州扑克规则与牌力分析项目。它提供标准 52 张牌的牌型判断、最佳五张选择、多人摊牌比较和精确胜负概率计算，并配有一个可以直接操作的网页界面。
+[在线体验](https://ryan-1125.github.io/MoonHold-em/) · [Android 安装与构建](docs/ANDROID.md) · [计算核心 API](https://mooncakes.io/docs/Ryan-1125/moonholdem)
 
-![MoonHold'em 桌面牌局分析界面](./images/multiplayer-desktop.png)
+![牌局分析界面](images/multiplayer-desktop.png)
 
-项目名称在代码中使用 `MoonHoldem`，网页界面使用 `MoonHold'em`。
+## 能做什么
 
-Android 应用名为「牌局实验室」，复用同一计算核心与界面，支持离线使用。安装与构建见 [Android 文档](./docs/ANDROID.md)。
+- 支持 2–9 人牌桌、自定义玩家名字，以及八个典型牌局示例。
+- 手动选牌、随机发一张，或一键补齐底牌，再补齐公共牌；双击已选牌可移除。
+- 牌池可切换完整布局与分色布局。分色模式按 2–9、10–A 分两行展示，记住布局和花色选择。
+- 分析当前牌型、最佳五张、独赢概率、共同获胜概率、落败概率和权益。
+- 转牌阶段列出不同河牌的结果，点击河牌可继续分析，并返回原来的转牌局面。
+- 提供牌力速查、关键牌强调、翻牌与发牌动画，以及适合手机的常驻导航。
+- 牌局图片支持预览、确认保存，导出宽度为 4000 像素的 PNG。
 
-## 功能
+所有玩家底牌必须已知，分析需要至少三张公共牌。概率来自剩余公共牌的精确枚举；权益是共同获胜时平分份额后的平均值，不等于独赢概率。本项目不包含下注、弃牌、边池、未知手牌范围或策略推荐。
 
-- 解析和校验标准扑克牌记法，例如 `As Kh Td 2c`。
-- 判断高牌、一对、两对、三条、顺子、同花、葫芦、四条和同花顺。
-- 从五至七张牌中选择最佳五张，处理 A2345 小顺子、踢脚牌和完全平局。
-- 比较 2 至 23 名玩家的最终牌力。网页牌桌限制为 2 至 9 人。
-- 在底牌全部已知、公共牌有 3 至 5 张时，精确枚举所有剩余公共牌。
-- 返回每位玩家的独赢、共同获胜、落败次数和权益。多人平局时，按获胜人数平分权益。
-- 提供中文牌力解释，并高亮决定比较结果的牌。
-- 转牌阶段按最终获胜玩家列出所有可能的河牌，突出逆转和共同获胜的结果，支持点击查看与返回转牌分析。
-- 网页支持牌力速查、图片预览和 PNG 下载。
+## 开始使用
 
-项目只处理牌力和牌局分析，不包含下注流程、弃牌、边池、对手范围、翻牌前未知手牌概率或策略 AI。
+网页中先选牌位，再选牌，或展开“试试示例”载入牌局。点击“分析牌局”后，可点击结果表的玩家行查看对应详情。
 
-## 环境要求
+网页新进入时是空白二人牌桌，当前标签页刷新会恢复牌局；APP 会在设备本地保存并恢复牌局。数据无需上传服务器。点击左上角品牌可刷新，图片保存前会先弹出预览。
 
-- MoonBit 编译器 `moonc >= 0.10.14`
-- Node.js 18 或更高版本（仅运行网页演示需要）
+Android 安装包由本地构建生成，当前版本为 **0.1.3**。已有相同签名的旧版可直接覆盖安装。APK 的网页资源和计算引擎都包含在安装包内，使用时不依赖电脑上的本地服务。安装步骤见 [Android 文档](docs/ANDROID.md)。
 
-项目使用 MoonBit 标准库，没有第三方 Mooncakes 依赖。
+## 本地运行网页
 
-## 本地运行
+需要 MoonBit 编译器（`moonc >= 0.10.14`）及 Node.js。建议使用 Node.js 22 或更高版本，以便同时运行 Android 构建工具。
 
-在仓库目录执行：
+```sh
+node scripts/serve-web.mjs
+```
+
+打开 <http://127.0.0.1:4173/>。脚本会构建计算引擎并启动服务，网页预览本身无需安装 npm 依赖。使用期间保持终端运行，按 `Ctrl+C` 停止；直接双击 HTML 文件不能替代本地服务。
+
+## 技术实现
+
+网页使用 HTML、CSS 和 JavaScript 实现交互，MoonBit 核心通过 JavaScript 接口在 Web Worker 中计算，避免阻塞界面。Android 使用 Capacitor 复用网页资源，并提供系统文件保存和返回键适配。
+
+五张牌通过点数计数、同花与顺子判断进行排序；七张牌枚举 21 个五张组合选出最强牌。胜负概率枚举剩余公共牌的无序组合，按每种结局的获胜玩家累计次数与权益。
+
+界面品牌为 Poker Lab，代码仓库和计算库保留 MoonHoldem 命名。核心库可独立使用：
+
+```moonbit nocheck
+// 在使用方包中导入 Ryan-1125/moonholdem，别名为 holdem。
+let cards = @holdem.parse_cards("As Ad Ah Ks Kd Kh 2c").unwrap()
+let hand = @holdem.evaluate(cards).unwrap()
+// hand.category 为 FullHouse，hand.tie_break 为 [14, 13]。
+```
+
+双人概率接口为 `exact_equity(hero, villain, board)`，多人接口为 `exact_table_equity(hands, board)`。牌面使用 `As`、`Kh`、`Td`、`2c` 等记法；完整示例见 `cmd/demo`。
+
+## 检查与构建
 
 ```sh
 moon check --deny-warn
 moon build --deny-warn
 moon test --deny-warn
 moon run cmd/demo
+node scripts/build-web.mjs
+node scripts/test-web.mjs
 ```
 
-`cmd/demo` 展示七选五、双人摊牌和转牌阶段的精确概率计算。
-
-如需验证全部五张牌组合：
+可使用以下命令遍历全部 2,598,960 种五张牌组合，校验九种牌型计数：
 
 ```sh
 moon run cmd/verify --release
 ```
 
-该命令会遍历 2,598,960 种五张牌组合，并检查九种牌型的数量是否符合数学计数。
-
-## 网页演示
+浏览器回归测试与 Android 打包需要 npm 依赖：
 
 ```sh
-node scripts/serve-web.mjs
+npm ci
+npm run build:app
+npx playwright install chromium
+npm run test:app
+npm run android:apk
 ```
 
-然后打开 <http://127.0.0.1:4173/>。脚本会先构建 MoonBit 的 JavaScript 接口，再启动本地服务；不需要执行 `npm install`。
+Android 构建还需要 JDK 21 和 Android SDK 36，详见 [构建说明](docs/ANDROID.md)。APK 输出到 `artifacts/`；签名文件保存在 `.local/android-signing/`，应私下备份并保留，供后续覆盖更新使用。安装包和签名文件不提交到仓库。
 
-网页操作流程：
+GitHub Actions 中包含核心检查、构建、测试和网页部署流程，Android 工作流可生成测试构建。浏览器的原生桥接测试使用模拟接口，不替代手机实测。
 
-1. 添加或移除玩家，牌桌支持 2 至 9 人；点击玩家名称可修改名字。
-2. 点击牌位，再从牌组中选择底牌和公共牌。选满一组牌后会自动取消选中，避免误替换。双击已选底牌或公共牌可快捷移除。
-3. 点击“计算牌力与概率”，查看全桌概率表、当前领先玩家和牌力解释。
-4. 点击结果表中的任意一行，查看该玩家的最佳五张和比较说明。
-5. 使用示例按钮可以载入 AA 对 KK、同花听牌、顺子听牌、A 小顺子、公共牌平局、多人分池、四人对局和九人对局。每个示例附有说明；九人示例同时包含顺子、三条、对子和听牌。
-6. 公共牌为四张时，在“哪张河牌能扭转局势？”中点击牌面，可填入该牌并查看最终结果；点击“返回转牌分析”恢复原牌局。保持领先的牌组可展开查看。
+## 主要目录
 
-牌力和精确概率由 MoonBit 核心完成，浏览器代码负责交互和展示。所有底牌已知时，结果是精确枚举，不是随机模拟。
-
-## 牌局保存与图片导出
-
-新打开链接时从全空的二人牌桌开始；在当前标签页刷新时，恢复玩家人数、名称和已选牌。牌局仅保存在当前标签页的会话中，不上传服务器。选牌区会播放一次展开和翻面动画；需要保留牌局时，可下载 PNG 图片。
-
-在“牌局分析”区域点击“下载牌局图片”后，会先打开图片预览。点击“确认下载”才会保存，点击“取消”或按 Esc 则不会下载。图片包含玩家底牌、公共牌、牌型、概率、权益和生成时间。
-
-导出采用 4 倍分辨率绘制，生成宽度为 4000 像素的无损 PNG，图片高度随玩家人数变化。
-
-文件名格式如下：
-
-```text
-MoonHold'em-2人牌局-2026.09.28-185636.png
-```
-
-## API 示例
-
-发布包后，可以在其他 MoonBit 项目中导入：
-
-```text
-import {
-  "Ryan-1125/moonholdem" @holdem,
-}
-```
-
-五至七张牌评估：
-
-```moonbit nocheck
-let cards = @holdem.parse_cards("As Ad Ah Ks Kd Kh 2c").unwrap()
-let hand = @holdem.evaluate(cards).unwrap()
-// hand.category: FullHouse
-// hand.tie_break: [14, 13]
-```
-
-双人精确概率：
-
-```moonbit nocheck
-let hero = @holdem.parse_cards("As Ad").unwrap()
-let villain = @holdem.parse_cards("Ks Kd").unwrap()
-let board = @holdem.parse_cards("2c 3d 7h 9s").unwrap()
-let equity = @holdem.exact_equity(hero, villain, board).unwrap()
-// 转牌阶段共有 44 种河牌结局
-```
-
-多人精确概率使用 `exact_table_equity(hands, board)`，其中 `hands` 包含 2 至 9 组两张底牌，`board` 包含 3 至 5 张公共牌。返回的每位玩家数据包括：
-
-- `wins`：独自获胜的结局数；
-- `ties`：与其他玩家并列第一的结局数；
-- `losses`：没有获胜的结局数；
-- `equity`：在所有结局中的平均牌池份额。
-
-`compare(a, b)` 返回 `1`、`0` 或 `-1`，分别表示左侧更强、平局或右侧更强。
-
-## 算法与验证
-
-五张牌评估通过点数计数、同花判断和顺子判断构造可比较的牌力值。七张牌评估枚举 21 个五张组合并选择最强组合。概率计算枚举剩余公共牌的无序组合：翻牌阶段枚举两张公共牌，转牌阶段枚举一张河牌，河牌阶段只有一个最终结果。
-
-测试覆盖九种牌型、同牌型比较、A2345、小顺子、踢脚牌、三对取最佳两对、平局、重复牌、多人共同获胜、2 至 9 人权益分配和浏览器接口。GitHub Actions 会执行格式检查、编译、测试、网页构建、网页接口测试、示例和牌型穷举验证。
-
-## 目录
-
-- `cards.mbt`：牌的表示、解析和重复检查。
-- `evaluator.mbt`：牌型评估和最佳五张选择。
-- `holdem.mbt`：摊牌和双人精确概率。
-- `multiplayer.mbt`：多人精确概率和权益计算。
-- `explanation.mbt`：中文比较说明和关键牌提取。
-- `moonholdem_test.mbt`：核心测试。
-- `cmd/demo`：命令行示例。
-- `cmd/verify`：五张牌组合穷举验证。
-- `web`：网页界面。
-- `web_bridge`：MoonBit 到浏览器的接口。
-- `scripts`：网页构建、服务和接口测试脚本。
-- `docs/RELEASE.md`：发布与验收清单。
+| 路径 | 用途 |
+| --- | --- |
+| `cards.mbt`、`evaluator.mbt` | 牌面校验、牌型评估与最佳五张 |
+| `holdem.mbt`、`multiplayer.mbt` | 摊牌与精确概率 |
+| `explanation.mbt` | 比较说明与关键牌 |
+| `web/`、`web_bridge/` | 网页与计算接口 |
+| `mobile/`、`android/` | Android 适配与工程 |
+| `cmd/demo/`、`cmd/verify/` | 可运行示例与穷举验证 |
+| `scripts/` | 构建、预览与回归检查 |
+| `images/`、`docs/` | 截图与文档 |
 
 ## 许可证
 
-本项目采用 MIT License，见 [LICENSE](LICENSE)。代码按通用德州扑克规则独立实现。
+采用 [MIT License](LICENSE)。扑克牌规则计算按通用德州扑克规则实现。
